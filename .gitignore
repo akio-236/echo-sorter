@@ -16,3 +16,6 @@ db.sqlite3 # Your local SQLite database
 # Django
 *.log
 local_settings.py # If you decide to use a separate local settings file
+
+# Environment variables file - DO NOT COMMIT SENSITIVE DATA!
+.env
