@@ -3,40 +3,175 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EchoSorter - Your Liked Songs</title>
+    <title>EchoSorter - Liked Songs</title>
     <style>
       body {
         font-family: sans-serif;
         margin: 20px;
+        background-color: #f4f4f4;
+        color: #333;
       }
-      ul {
-        list-style: none;
-        padding: 0;
+      h1 {
+        color: #1db954;
+      } /* Spotify Green */
+      .filter-section {
+        margin-bottom: 20px;
+        padding: 15px;
+        border: 1px solid #ddd;
+        background-color: #fff;
+        border-radius: 8px;
       }
-      li {
-        background-color: #f0f0f0;
-        margin-bottom: 5px;
-        padding: 10px;
+      .filter-section label {
+        margin-right: 10px;
+        font-weight: bold;
+      }
+      .filter-section select {
+        padding: 8px;
         border-radius: 5px;
+        border: 1px solid #ccc;
+      }
+      .song-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        justify-content: center;
+      }
+      .song-item {
+        background-color: #fff;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        padding: 15px;
+        width: 280px; /* Fixed width for better layout */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      .song-item img {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 5px;
+        margin-bottom: 10px;
+      }
+      .song-item h3 {
+        margin: 0 0 5px 0;
+        color: #1db954;
+        font-size: 1.1em;
+      }
+      .song-item p {
+        margin: 0 0 3px 0;
+        font-size: 0.9em;
+        color: #555;
+      }
+      .song-item .genres {
+        font-size: 0.8em;
+        color: #777;
+        margin-top: 5px;
+      }
+      .song-item a {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 8px 15px;
+        background-color: #1db954;
+        color: white;
+        text-decoration: none;
+        border-radius: 20px;
+        font-size: 0.9em;
+      }
+      .song-item a:hover {
+        background-color: #1ed760;
       }
     </style>
   </head>
   <body>
-    <h1>Your Liked Songs</h1>
-    {% if songs %}
-    <p>Found {{ songs|length }} liked songs:</p>
-    <ul>
-      {% for song in songs %}
-      <li>
-        <strong>{{ song.title }}</strong> by {{ song.artist }} ({{ song.album
-        }})
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <p>No liked songs found or an error occurred.</p>
-    {% endif %}
+    <h1>Your Liked Songs ({{ songs|length }} total)</h1>
 
-    <p><a href="/">Back to Home (or where your connect button would be)</a></p>
+    <div class="filter-section">
+      <label for="genreFilter">Filter by Genre:</label>
+      <select id="genreFilter">
+        <option value="all">All Genres</option>
+        {# Populate with unique broad genres dynamically using JavaScript later
+        #}
+      </select>
+    </div>
+
+    <div class="song-list">
+      {% for song in songs %}
+      <div
+        class="song-item"
+        data-genres="{{ song.broad_genres|join:','|lower }}"
+      >
+        {% if song.image_url %}
+        <img src="{{ song.image_url }}" alt="{{ song.album }} Album Art" />
+        {% endif %}
+        <h3>{{ song.title }}</h3>
+        <p>by {{ song.artist }}</p>
+        <p>Album: {{ song.album }}</p>
+        {% if song.broad_genres %}
+        <p class="genres">Genres: {{ song.broad_genres|join:', ' }}</p>
+        {% else %}
+        <p class="genres">Genres: N/A</p>
+        {% endif %} {% if song.preview_url %}
+        <a href="{{ song.preview_url }}" target="_blank">Listen Preview</a>
+        {% endif %}
+      </div>
+      {% empty %}
+      <p>
+        No liked songs found. Make sure you have authorized EchoSorter to read
+        your library.
+      </p>
+      {% endfor %}
+    </div>
+
+    {# JavaScript will go here #}
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const genreFilter = document.getElementById("genreFilter");
+        const songItems = document.querySelectorAll(".song-item");
+        const allBroadGenres = new Set(); // To collect unique broad genres for the dropdown
+
+        // Collect all broad genres from the songs and populate the dropdown
+        songItems.forEach((item) => {
+          const genresAttr = item.dataset.genres; // "rock,pop,electronic"
+          if (genresAttr) {
+            genresAttr.split(",").forEach((genre) => {
+              if (genre) {
+                // Avoid empty strings
+                allBroadGenres.add(genre);
+              }
+            });
+          }
+        });
+
+        // Populate the dropdown
+        const sortedUniqueGenres = Array.from(allBroadGenres).sort();
+        sortedUniqueGenres.forEach((genre) => {
+          const option = document.createElement("option");
+          option.value = genre;
+          option.textContent = genre.charAt(0).toUpperCase() + genre.slice(1); // Capitalize first letter
+          genreFilter.appendChild(option);
+        });
+
+        genreFilter.addEventListener("change", function () {
+          const selectedGenre = this.value; // "all" or a specific genre like "rock"
+
+          songItems.forEach((item) => {
+            const songGenres = item.dataset.genres.split(","); // Array of broad genres for this song
+            if (selectedGenre === "all") {
+              item.style.display = "flex"; // Show all songs
+            } else {
+              // Check if the selected genre is in the song's broad genres
+              if (songGenres.includes(selectedGenre)) {
+                item.style.display = "flex";
+              } else {
+                item.style.display = "none";
+              }
+            }
+          });
+        });
+      });
+    </script>
   </body>
 </html>
