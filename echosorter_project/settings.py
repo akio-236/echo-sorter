@@ -25,6 +25,8 @@ SPOTIPY_CLIENT_ID = os.environ.get("SPOTIPY_CLIENT_ID")
 SPOTIPY_CLIENT_SECRET = os.environ.get("SPOTIPY_CLIENT_SECRET")
 SPOTIPY_REDIRECT_URI = os.environ.get("SPOTIPY_REDIRECT_URI")
 
+print(f"DEBUG: SPOTIPY_REDIRECT_URI is set to: {SPOTIPY_REDIRECT_URI}")
+
 
 if not all([SPOTIPY_CLIENT_ID, SPOTIPY_CLIENT_SECRET, SPOTIPY_REDIRECT_URI]):
     raise ValueError(
@@ -70,7 +72,7 @@ ROOT_URLCONF = "echosorter_project.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "spotify_integration" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
