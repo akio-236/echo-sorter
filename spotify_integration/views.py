@@ -27,13 +27,28 @@ def auth_spotify(request):
 
 def spotify_callback(request):
     code = request.GET.get("code")
-    if not code:
-        return JsonResponse({"error": "No authorization code received"}, status=400)
+    error = request.GET.get("error")  # <--- Add this line to get potential error
+
+    if error:  # <--- Check for an error first
+        return JsonResponse(
+            {"error": f"Spotify authorization error: {error}"}, status=400
+        )
+
+    if not code:  # <--- If no error and no code, then it's unexpected
+        return JsonResponse(
+            {
+                "error": "No authorization code received (and no explicit error from Spotify)"
+            },
+            status=400,
+        )
+
     sp_oauth = get_spotify_auth()
 
     try:
         token_info = sp_oauth.get_access_token(code)
-        return redirect("spotify_integration: liked_songs")
+        # You might want to save token_info securely (e.g., in a session)
+        # request.session['token_info'] = token_info # Example: save token_info in session
+        return redirect("spotify_integration:liked_songs")
 
     except Exception as e:
         return JsonResponse(
@@ -42,15 +57,26 @@ def spotify_callback(request):
 
 
 def liked_songs(request):
-    sp_oauth = get_spotify_auth()
-    token_info = sp_oauth.validate_token(sp_oauth.cahce_path)
+    sp_oauth = (
+        get_spotify_auth()
+    )  # This correctly initializes SpotifyOAuth with cache_path
+
+    # Attempt to get the token from the cache.
+    # get_cached_token() will return token_info if available and not expired beyond refresh window.
+    token_info = sp_oauth.get_cached_token()
 
     if not token_info:
-        return redirect("spotify_integration: auth_spotify")
+        # If no token is cached (e.g., first visit, or cache cleared), redirect for re-authorization.
+        print("No cached token found, redirecting to Spotify authorization.")
+        return redirect("spotify_integration:auth_spotify")
 
     try:
-        sp = spotipy.Spotify(auth=token_info["access_token"])
+        # Initialize Spotify client using the SpotifyOAuth object as the auth_manager.
+        # This is the idiomatic way; Spotipy will automatically use/refresh the token from the cache.
+        sp = spotipy.Spotify(auth_manager=sp_oauth)
+
         liked_tracks = []
+        # Fetching liked songs
         results = sp.current_user_saved_tracks()
         liked_tracks.extend(results["items"])
 
@@ -79,9 +105,27 @@ def liked_songs(request):
             request, "spotify_integration/liked_songs.html", {"songs": songs_data}
         )
 
+    except spotipy.exceptions.SpotifyException as e:
+        # This handles cases where Spotify returns an error,
+        # often due to an invalid/expired token that couldn't be refreshed.
+        if e.http_status == 401:  # Unauthorized
+            print(
+                "Spotify API returned 401. Token might be expired or invalid. Clearing cache."
+            )
+            # Clear the cache file to force a fresh re-authentication.
+            # You refer to the literal filename passed during SpotifyOAuth instantiation.
+            if os.path.exists("local_tokes.json"):
+                os.remove("local_tokes.json")
+            return redirect("spotify_integration:auth_spotify")
+        # For other Spotify API errors, return a JSON response with the error details.
+        print(f"Spotify API error: {e}")
+        return JsonResponse({"error": f"Spotify API error: {e}"}, status=e.http_status)
     except Exception as e:
-        if isinstance(e, spotipy.exceptions.SpotifyException) and e.http_status == 401:
-            if os.path.exists(sp_oauth.cache_path):
-                os.remove(sp_oauth.cache_path)
-            return redirect("spotify_integration: auth_spotify")
-        return JsonResponse({"error": f"Error fetching liked songs: {e}"}, status=500)
+        # Catch any other unexpected errors
+        print(f"An unexpected error occurred in liked_songs: {e}")
+        return JsonResponse({"error": f"An unexpected error occurred: {e}"}, status=500)
+
+
+def home(request):
+    """Renders the home page with a Spotify connect button."""
+    return render(request, "home.html")
