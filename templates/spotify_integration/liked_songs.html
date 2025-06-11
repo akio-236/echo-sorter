@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EchoSorter - Your Liked Songs</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 20px;
+      }
+      ul {
+        list-style: none;
+        padding: 0;
+      }
+      li {
+        background-color: #f0f0f0;
+        margin-bottom: 5px;
+        padding: 10px;
+        border-radius: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Your Liked Songs</h1>
+    {% if songs %}
+    <p>Found {{ songs|length }} liked songs:</p>
+    <ul>
+      {% for song in songs %}
+      <li>
+        <strong>{{ song.title }}</strong> by {{ song.artist }} ({{ song.album
+        }})
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No liked songs found or an error occurred.</p>
+    {% endif %}
+
+    <p><a href="/">Back to Home (or where your connect button would be)</a></p>
+  </body>
+</html>
