@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+.Python/
+env/
+venv/
+*.env
+.idea/  # For PyCharm users
+.vscode/ # For VS Code users
+db.sqlite3 # Your local SQLite database
+/static/
+/media/
+/local_tokens.json # We'll use this temporarily for Spotify tokens
+# Django
+*.log
+local_settings.py # If you decide to use a separate local settings file
