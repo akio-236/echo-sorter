@@ -15,12 +15,15 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+# echosorter_project/urls.py
+
 from django.contrib import admin
 from django.urls import path, include
-from spotify_integration import views
+from spotify_integration import views as spotify_views
 
 urlpatterns = [
-    path("", views.home, name="home"),
     path("admin/", admin.site.urls),
+    # This makes the root URL '/' point to the new home view
+    path("", spotify_views.home, name="home"),  # CHANGED THIS LINE
     path("spotify/", include("spotify_integration.urls")),
 ]
