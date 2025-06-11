@@ -5,6 +5,7 @@ from django.shortcuts import redirect, render
 from django.http import JsonResponse
 import json
 import os
+from .genre_utils import BROAD_GENRE_MAPPING, map_specific_genres_to_broad
 
 SCOPE = "user-library-read playlist-modify-public playlist-modify-private"
 
@@ -57,71 +58,107 @@ def spotify_callback(request):
 
 
 def liked_songs(request):
-    sp_oauth = (
-        get_spotify_auth()
-    )  # This correctly initializes SpotifyOAuth with cache_path
-
-    # Attempt to get the token from the cache.
-    # get_cached_token() will return token_info if available and not expired beyond refresh window.
+    sp_oauth = get_spotify_auth()
     token_info = sp_oauth.get_cached_token()
 
     if not token_info:
-        # If no token is cached (e.g., first visit, or cache cleared), redirect for re-authorization.
         print("No cached token found, redirecting to Spotify authorization.")
         return redirect("spotify_integration:auth_spotify")
 
     try:
-        # Initialize Spotify client using the SpotifyOAuth object as the auth_manager.
-        # This is the idiomatic way; Spotipy will automatically use/refresh the token from the cache.
         sp = spotipy.Spotify(auth_manager=sp_oauth)
 
         liked_tracks = []
-        # Fetching liked songs
-        results = sp.current_user_saved_tracks()
-        liked_tracks.extend(results["items"])
+        all_artist_ids = set()  # To collect all unique artist IDs efficiently
 
-        while results["next"]:
-            results = sp.next(results)
-            liked_tracks.extend(results["items"])
+        # Fetch all liked songs (with pagination)
+        results = sp.current_user_saved_tracks(limit=50)
+        while results:
+            for item in results["items"]:
+                track = item["track"]
+                liked_tracks.append(
+                    track
+                )  # Store the full track object for later processing
+                for artist in track["artists"]:
+                    all_artist_ids.add(artist["id"])  # Collect artist IDs
+            if results["next"]:
+                results = sp.next(results)
+            else:
+                results = None
+
+        print(f"Fetched {len(liked_tracks)} liked songs from Spotify.")
+        print(f"Found {len(all_artist_ids)} unique artists.")
+
+        # --- NEW: Fetch Artist Genres ---
+        artist_genres_map = {}  # Map artist_id to their specific genres
+        artist_ids_list = list(all_artist_ids)
+        batch_size = 50  # Max artists per Spotify API call
+
+        for i in range(0, len(artist_ids_list), batch_size):
+            batch = artist_ids_list[i : i + batch_size]
+            artists_details = sp.artists(batch)
+            for artist_detail in artists_details["artists"]:
+                if (
+                    artist_detail
+                ):  # Ensure artist_detail is not None (can happen if artist ID is bad)
+                    artist_genres_map[artist_detail["id"]] = artist_detail.get(
+                        "genres", []
+                    )
+        # --- END NEW: Fetch Artist Genres ---
 
         songs_data = []
-        for item in liked_tracks:
-            track = item["track"]
-            artists = ", ".join([artist["name"] for artist in track["artists"]])
+        for track in liked_tracks:
+            artists_names = []
+            song_specific_genres = set()  # Collect specific genres for this song
+
+            for artist in track["artists"]:
+                artists_names.append(artist["name"])
+                # Get specific genres from the map we just built
+                specific_genres = artist_genres_map.get(artist["id"], [])
+                for g in specific_genres:
+                    song_specific_genres.add(g)
+
+            # --- NEW: Map specific genres to broad genres ---
+            broad_genres_for_song = map_specific_genres_to_broad(
+                list(song_specific_genres)
+            )
+            # --- END NEW: Map specific genres to broad genres ---
+
             songs_data.append(
                 {
                     "title": track["name"],
-                    "artist": artists,
+                    "artist": ", ".join(artists_names),
                     "album": track["album"]["name"],
                     "id": track["id"],
+                    "preview_url": track["preview_url"],  # Useful for playing snippets
+                    "image_url": track["album"]["images"][0]["url"]
+                    if track["album"]["images"]
+                    else "",
+                    "broad_genres": broad_genres_for_song,  # ADDED: Broad genres for this song
+                    # "specific_genres": list(song_specific_genres), # Optional: keep specific genres too
                 }
             )
 
-        print(f"Fetched {len(songs_data)} liked songs from Spotify")
-        for song in songs_data[:10]:
-            print(f"- {song['title']} by {song['artist']}")
+        print(f"Processed {len(songs_data)} songs with broad genres.")
+        # For debugging, print first few songs with their broad genres
+        # for song in songs_data[:5]:
+        #     print(f"- {song['title']} by {song['artist']} | Genres: {song['broad_genres']}")
 
         return render(
             request, "spotify_integration/liked_songs.html", {"songs": songs_data}
         )
 
     except spotipy.exceptions.SpotifyException as e:
-        # This handles cases where Spotify returns an error,
-        # often due to an invalid/expired token that couldn't be refreshed.
-        if e.http_status == 401:  # Unauthorized
+        if e.http_status == 401:
             print(
                 "Spotify API returned 401. Token might be expired or invalid. Clearing cache."
             )
-            # Clear the cache file to force a fresh re-authentication.
-            # You refer to the literal filename passed during SpotifyOAuth instantiation.
             if os.path.exists("local_tokes.json"):
                 os.remove("local_tokes.json")
             return redirect("spotify_integration:auth_spotify")
-        # For other Spotify API errors, return a JSON response with the error details.
         print(f"Spotify API error: {e}")
         return JsonResponse({"error": f"Spotify API error: {e}"}, status=e.http_status)
     except Exception as e:
-        # Catch any other unexpected errors
         print(f"An unexpected error occurred in liked_songs: {e}")
         return JsonResponse({"error": f"An unexpected error occurred: {e}"}, status=500)
 
