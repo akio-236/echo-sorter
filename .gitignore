@@ -1,21 +1,23 @@
-# Python
-__pycache__/
-*.pyc
-*.pyd
-*.pyo
-.Python/
-env/
-venv/
-*.env
-.idea/  # For PyCharm users
-.vscode/ # For VS Code users
-db.sqlite3 # Your local SQLite database
-/static/
-/media/
-/local_tokens.json # We'll use this temporarily for Spotify tokens
-# Django
+ Django specific ignores
 *.log
-local_settings.py # If you decide to use a separate local settings file
+*.pot
+*.pyc
+__pycache__/
+celerybeat-schedule/
+db.sqlite3
+media/  # User-uploaded files, if you implement them later
 
-# Environment variables file - DO NOT COMMIT SENSITIVE DATA!
-.env
+# Virtual environment
+venv/
+.env  # If you use a .env file for environment variables
+
+# Spotipy token cache
+local_tokes.json
+
+# IDE specific ignores (add if you use these IDEs)
+.idea/  # PyCharm
+.vscode/  # VS Code
+
+# Operating System specific
+.DS_Store # macOS
+Thumbs.db # Windows
