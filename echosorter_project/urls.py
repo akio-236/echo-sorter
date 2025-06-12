@@ -17,6 +17,8 @@ Including another URLconf
 
 # echosorter_project/urls.py
 
+# echosorter_project/urls.py
+
 from django.contrib import admin
 from django.urls import path, include
 from spotify_integration import views as spotify_views
