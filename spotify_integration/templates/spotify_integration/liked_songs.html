@@ -95,6 +95,29 @@
         {# Populate with unique broad genres dynamically using JavaScript later
         #}
       </select>
+      <form
+        id="playlistForm"
+        action="{% url 'spotify_integration:create_playlist' %}"
+        method="POST"
+        style="margin-top: 10px"
+      >
+        {% csrf_token %}
+        <input type="hidden" name="genre" id="selectedGenreInput" value="" />
+        <button
+          type="submit"
+          style="
+            padding: 8px 16px;
+            background-color: #1db954;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 1em;
+            cursor: pointer;
+          "
+        >
+          Create Spotify Playlist for Selected Genre
+        </button>
+      </form>
     </div>
 
     <div class="song-list">
@@ -130,39 +153,34 @@
       document.addEventListener("DOMContentLoaded", function () {
         const genreFilter = document.getElementById("genreFilter");
         const songItems = document.querySelectorAll(".song-item");
-        const allBroadGenres = new Set(); // To collect unique broad genres for the dropdown
+        const allBroadGenres = new Set();
+        const hiddenInput = document.getElementById("selectedGenreInput");
 
-        // Collect all broad genres from the songs and populate the dropdown
         songItems.forEach((item) => {
-          const genresAttr = item.dataset.genres; // "rock,pop,electronic"
+          const genresAttr = item.dataset.genres;
           if (genresAttr) {
             genresAttr.split(",").forEach((genre) => {
               if (genre) {
-                // Avoid empty strings
                 allBroadGenres.add(genre);
               }
             });
           }
         });
 
-        // Populate the dropdown
         const sortedUniqueGenres = Array.from(allBroadGenres).sort();
         sortedUniqueGenres.forEach((genre) => {
           const option = document.createElement("option");
           option.value = genre;
-          option.textContent = genre.charAt(0).toUpperCase() + genre.slice(1); // Capitalize first letter
+          option.textContent = genre.charAt(0).toUpperCase() + genre.slice(1);
           genreFilter.appendChild(option);
         });
 
-        genreFilter.addEventListener("change", function () {
-          const selectedGenre = this.value; // "all" or a specific genre like "rock"
-
+        function filterSongs(selectedGenre) {
           songItems.forEach((item) => {
-            const songGenres = item.dataset.genres.split(","); // Array of broad genres for this song
+            const songGenres = item.dataset.genres.split(",");
             if (selectedGenre === "all") {
-              item.style.display = "flex"; // Show all songs
+              item.style.display = "flex";
             } else {
-              // Check if the selected genre is in the song's broad genres
               if (songGenres.includes(selectedGenre)) {
                 item.style.display = "flex";
               } else {
@@ -170,7 +188,19 @@
               }
             }
           });
+        }
+
+        genreFilter.addEventListener("change", function () {
+          const selectedGenre = this.value;
+          filterSongs(selectedGenre);
+          if (hiddenInput) {
+            hiddenInput.value = selectedGenre;
+          }
         });
+
+        // Set initial value
+        hiddenInput.value = genreFilter.value;
+        filterSongs(genreFilter.value);
       });
     </script>
   </body>
