@@ -36,7 +36,7 @@ def get_spotify_auth():
         client_id=settings.SPOTIPY_CLIENT_ID,
         client_secret=settings.SPOTIPY_CLIENT_SECRET,
         redirect_uri=redirect_uri,
-        scope="user-library-read user-read-private user-read-email",
+        scope="user-library-read user-read-private user-read-email playlist-modify-private playlist-modify-public",
         cache_path="local_tokes.json",  # Path to store cached tokens
     )
 
