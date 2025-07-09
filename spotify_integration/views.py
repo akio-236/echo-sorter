@@ -1,5 +1,3 @@
-# F:\Projects\echo-sorter\spotify_integration\views.py
-
 import os
 import json
 from django.shortcuts import render, redirect
@@ -7,24 +5,23 @@ from django.http import JsonResponse
 from django.conf import settings
 from spotipy.oauth2 import SpotifyOAuth
 import spotipy
-from django.db import transaction  # Crucial for atomic database operations
-import logging  # For better logging
-from django.views.decorators.csrf import csrf_exempt
+from django.db import transaction
+import logging
+from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.contrib import messages
 
-# Configure a logger for this module
+
 logger = logging.getLogger(__name__)
 
-# Import your models
+
 from .models import Song, Artist, Album, SpecificGenre, BroadGenre
 
-# Import your genre mapping utilities
+
 from .genre_utils import BROAD_GENRE_MAPPING, map_specific_genres_to_broad
 
 
-# --- Helper function for Spotify Authentication ---
 def get_spotify_auth():
     """
     Initializes and returns a SpotifyOAuth object.
@@ -38,11 +35,10 @@ def get_spotify_auth():
         client_secret=settings.SPOTIPY_CLIENT_SECRET,
         redirect_uri=redirect_uri,
         scope="user-library-read user-read-private user-read-email playlist-modify-private playlist-modify-public",
-        cache_path="local_tokes.json",  # Path to store cached tokens
+        cache_path="local_tokes.json",
     )
 
 
-# --- View for the Home Page ---
 def home(request):
     """
     Renders the welcome page with the 'Connect with Spotify' button.
@@ -50,7 +46,6 @@ def home(request):
     return render(request, "home.html")
 
 
-# --- View to initiate Spotify Authorization ---
 def auth_spotify(request):
     """
     Redirects the user to Spotify's authorization page.
@@ -61,7 +56,6 @@ def auth_spotify(request):
     return redirect(auth_url)
 
 
-# --- Spotify Callback View (Handles the redirect from Spotify) ---
 def spotify_callback(request):
     """
     Handles the callback from Spotify after user authorization.
@@ -79,26 +73,21 @@ def spotify_callback(request):
         )
 
     try:
-        # Exchange authorization code for an access token
         logger.info("Attempting to get Spotify access token...")
         token_info = sp_oauth.get_access_token(code, check_cache=False)
         logger.info("Token obtained and cached successfully.")
 
         sp = spotipy.Spotify(auth_manager=sp_oauth)
 
-        # --- Start Data Sync to Database ---
         logger.info("Starting data sync to database...")
-        all_liked_tracks_spotify_ids = (
-            set()
-        )  # To track Spotify IDs of currently liked songs
-        current_user_liked_tracks = []  # Store full track objects from Spotify
+        all_liked_tracks_spotify_ids = set()
+        current_user_liked_tracks = []
 
-        # Fetch all liked songs from Spotify API with pagination
         results = sp.current_user_saved_tracks(limit=50)
         while results:
             for item in results["items"]:
                 track = item["track"]
-                if track:  # Ensure track data exists
+                if track:
                     current_user_liked_tracks.append(track)
                     all_liked_tracks_spotify_ids.add(track["id"])
             if results["next"]:
@@ -110,12 +99,9 @@ def spotify_callback(request):
             f"Fetched {len(current_user_liked_tracks)} liked songs from Spotify API."
         )
 
-        # Process and Save to DB within an atomic transaction
         with transaction.atomic():
-            # Step 1: Collect all unique artist IDs from the fetched liked songs
             all_api_artist_ids = set()
             for track_data in current_user_liked_tracks:
-                # Only add artists if track_data is valid enough to attempt processing later
                 song_id = track_data.get("id")
                 song_title = track_data.get("name")
                 album_data = track_data.get("album")
@@ -126,7 +112,6 @@ def spotify_callback(request):
                 )
                 artists_from_track = track_data.get("artists", [])
 
-                # Only add artists to the batch fetch if the song has critical data
                 if (
                     song_title
                     and album_data
@@ -145,10 +130,9 @@ def spotify_callback(request):
                 f"Collected {len(all_api_artist_ids)} unique artist IDs for genre fetching."
             )
 
-            # Step 2: Fetch detailed information (including genres) for all unique artists in batches
-            artist_details_from_api = {}  # Dictionary to store artist_id -> artist_detail
+            artist_details_from_api = {}
             artist_ids_list = list(all_api_artist_ids)
-            batch_size = 50  # Spotify API allows up to 50 artist IDs per request
+            batch_size = 50
             for i in range(0, len(artist_ids_list), batch_size):
                 batch = artist_ids_list[i : i + batch_size]
                 try:
@@ -428,6 +412,8 @@ def liked_songs(request):
             )
             logger.debug("-" * 40)  # Separator for readability
 
+        genres_csv = ",".join([genre.lower() for genre in broad_genres_for_song])
+
         songs_data.append(
             {
                 "title": song_obj.title,
@@ -440,7 +426,8 @@ def liked_songs(request):
                 "image_url": song_obj.album.image_url
                 if song_obj.album and song_obj.album.image_url
                 else "/static/default_album_art.png",
-                "broad_genres": broad_genres_for_song,  # This is a list of strings
+                "broad_genres": broad_genres_for_song,
+                "genres_csv": genres_csv,  # This is a list of strings
             }
         )
     logger.debug(
@@ -459,13 +446,13 @@ def liked_songs(request):
         request,
         "spotify_integration/liked_songs.html",
         {
-            "songs": songs_data,
-            "broad_genres_for_filter": sorted_broad_genres,  # Pass sorted genres for the filter
+            "songs": songs_data,  # List of dicts
+            "broad_genres_for_filter": sorted_broad_genres,  # List of genre strings
         },
     )
 
 
-@csrf_exempt
+@csrf_protect
 @require_POST
 def create_playlist(request):
     genre = request.POST.get("genre", "").strip().lower()
@@ -504,4 +491,10 @@ def create_playlist(request):
     messages.success(
         request, f"Playlist '{playlist_name}' created with {len(track_uris)} songs!"
     )
-    return redirect("spotify_integration:liked_songs")
+    return JsonResponse(
+        {
+            "message": f"Playlist '{playlist_name}' created with {len(track_uris)} songs!",
+            "playlist_url": playlist["external_urls"]["spotify"],
+        },
+        status=200,
+    )

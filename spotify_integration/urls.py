@@ -1,9 +1,7 @@
-# spotify_integration/urls.py
-
 from django.urls import path
-from . import views  # Import views from the current app
+from . import views
 
-app_name = "spotify_integration"  # This is important for namespacing URLs
+app_name = "spotify_integration"
 
 urlpatterns = [
     path("", views.home, name="home"),

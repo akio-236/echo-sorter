@@ -123,16 +123,16 @@
       <label for="genreFilter">Filter by Genre:</label>
       <select id="genreFilter">
         <option value="all">All Genres</option>
+        {% for genre in broad_genres_for_filter %}
+        <option value="{{ genre|lower }}">{{ genre }}</option>
+        {% endfor %}
       </select>
       <button id="createPlaylistBtn">🎧 Create Playlist</button>
     </div>
 
     <div class="song-list">
       {% for song in songs %}
-      <div
-        class="song-item"
-        data-genres="{{ song.broad_genres|join:','|lower }}"
-      >
+      <div class="song-item" data-genres="{{ song.genres_csv }}">
         {% if song.image_url %}
         <img src="{{ song.image_url }}" alt="{{ song.album }} Album Art" />
         {% endif %}
@@ -140,7 +140,7 @@
         <p>by {{ song.artist }}</p>
         <p>Album: {{ song.album }}</p>
         {% if song.broad_genres %}
-        <p class="genres">Genres: {{ song.broad_genres|join:', ' }}</p>
+        <p class="genres">Genres: {{ song.broad_genres|join:", " }}</p>
         {% else %}
         <p class="genres">Genres: N/A</p>
         {% endif %} {% if song.preview_url %}
@@ -161,24 +161,6 @@
       document.addEventListener("DOMContentLoaded", function () {
         const genreFilter = document.getElementById("genreFilter");
         const songItems = document.querySelectorAll(".song-item");
-        const allBroadGenres = new Set();
-
-        songItems.forEach((item) => {
-          const genresAttr = item.dataset.genres;
-          if (genresAttr) {
-            genresAttr.split(",").forEach((genre) => {
-              if (genre) allBroadGenres.add(genre);
-            });
-          }
-        });
-
-        const sortedUniqueGenres = Array.from(allBroadGenres).sort();
-        sortedUniqueGenres.forEach((genre) => {
-          const option = document.createElement("option");
-          option.value = genre;
-          option.textContent = genre.charAt(0).toUpperCase() + genre.slice(1);
-          genreFilter.appendChild(option);
-        });
 
         genreFilter.addEventListener("change", function () {
           const selectedGenre = this.value;
@@ -191,13 +173,12 @@
           });
         });
 
-        // 🎧 Playlist Creation
         document
           .getElementById("createPlaylistBtn")
           .addEventListener("click", function () {
             const selectedGenre = genreFilter.value;
             if (!selectedGenre || selectedGenre === "all") {
-              showToast("❗ Please select a specific genre first");
+              showToast("❗ Please select a specific genre first", "warning");
               return;
             }
 
@@ -205,38 +186,49 @@
               method: "POST",
               headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
-                "X-CSRFToken": getCSRFToken(),
               },
               body: `genre=${encodeURIComponent(selectedGenre)}`,
             })
-              .then((res) => res.json())
+              .then((response) => {
+                if (!response.ok) {
+                  return response.json().then((data) => {
+                    throw new Error(data.error || "Unknown error");
+                  });
+                }
+                return response.json();
+              })
               .then((data) => {
-                showToast(data.message);
+                showToast("✅ " + data.message, "success");
                 if (data.playlist_url) {
-                  setTimeout(
-                    () => window.open(data.playlist_url, "_blank"),
-                    1000
-                  );
+                  setTimeout(() => {
+                    window.open(data.playlist_url, "_blank");
+                    window.location.href = "/spotify/liked_songs/";
+                  }, 1500);
                 }
               })
               .catch((err) => {
-                showToast("⚠️ Error creating playlist. Try again.");
+                showToast("❌ " + err.message, "error");
                 console.error(err);
               });
           });
 
-        function showToast(message) {
+        function showToast(message, type = "info") {
           const toast = document.getElementById("toast");
-          toast.textContent = message;
-          toast.style.visibility = "visible";
-          setTimeout(() => (toast.style.visibility = "hidden"), 3000);
-        }
 
-        function getCSRFToken() {
-          const cookieValue = document.cookie
-            .split("; ")
-            .find((row) => row.startsWith("csrftoken="));
-          return cookieValue ? cookieValue.split("=")[1] : "";
+          toast.textContent = message;
+          toast.style.backgroundColor =
+            type === "success"
+              ? "#1db954"
+              : type === "error"
+              ? "#d9534f"
+              : type === "warning"
+              ? "#f0ad4e"
+              : "#333";
+
+          toast.style.visibility = "visible";
+          setTimeout(() => {
+            toast.style.visibility = "hidden";
+          }, 3000);
         }
       });
     </script>
