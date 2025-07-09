@@ -9,6 +9,9 @@ from spotipy.oauth2 import SpotifyOAuth
 import spotipy
 from django.db import transaction  # Crucial for atomic database operations
 import logging  # For better logging
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from django.utils import timezone
 
 # Configure a logger for this module
 logger = logging.getLogger(__name__)
@@ -453,4 +456,53 @@ def liked_songs(request):
             "songs": songs_data,
             "broad_genres_for_filter": sorted_broad_genres,  # Pass sorted genres for the filter
         },
+    )
+
+
+@csrf_exempt
+@require_POST
+def create_playlist(request):
+    """
+    Creates a Spotify playlist with the filtered songs and adds them to user's account.
+    """
+    genre = request.POST.get("genre")
+    if not genre:
+        return JsonResponse({"error": "Genre not provided"}, status=400)
+
+    sp_oauth = get_spotify_auth()
+    token_info = sp_oauth.get_cached_token()
+    if not token_info:
+        return redirect("spotify_integration:auth_spotify")
+
+    sp = spotipy.Spotify(auth=token_info["access_token"])
+
+    # Get current user info
+    user = sp.current_user()
+    user_id = user["id"]
+
+    # Generate playlist name
+    playlist_name = f"{genre} Playlist ({timezone.now().strftime('%Y-%m-%d')})"
+
+    # Create the playlist
+    playlist = sp.user_playlist_create(user=user_id, name=playlist_name, public=False)
+    playlist_id = playlist["id"]
+
+    # Get songs of the given genre
+    genre_songs = (
+        Song.objects.prefetch_related("artists__genres")
+        .filter(artists__genres__broad_genres__name=genre)
+        .distinct()
+    )
+
+    track_uris = [f"spotify:track:{song.spotify_id}" for song in genre_songs]
+
+    # Spotify limits to 100 tracks per add call
+    for i in range(0, len(track_uris), 100):
+        sp.playlist_add_items(playlist_id, track_uris[i : i + 100])
+
+    return JsonResponse(
+        {
+            "message": f"Playlist '{playlist_name}' created with {len(track_uris)} songs!",
+            "playlist_url": playlist["external_urls"]["spotify"],
+        }
     )
