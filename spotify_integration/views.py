@@ -12,6 +12,7 @@ import logging  # For better logging
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.utils import timezone
+from django.contrib import messages
 
 # Configure a logger for this module
 logger = logging.getLogger(__name__)
@@ -323,18 +324,23 @@ def spotify_callback(request):
                     song_id
                 )  # Add to the set of actually processed songs
 
-            # Remove songs from DB that are no longer liked by the user OR were skipped during this run
-            # This ensures only successfully processed songs remain in the DB
-            db_current_songs = set(Song.objects.values_list("spotify_id", flat=True))
-            songs_to_remove_ids = db_current_songs - processed_songs_spotify_ids
-            if songs_to_remove_ids:
-                Song.objects.filter(spotify_id__in=songs_to_remove_ids).delete()
+            if request.GET.get("sync") == "true":
+                db_current_songs = set(
+                    Song.objects.values_list("spotify_id", flat=True)
+                )
+                songs_to_remove_ids = db_current_songs - processed_songs_spotify_ids
+                if songs_to_remove_ids:
+                    Song.objects.filter(spotify_id__in=songs_to_remove_ids).delete()
+                    logger.info(
+                        f"Removed {len(songs_to_remove_ids)} songs (no longer liked by user or skipped during sync) from DB."
+                    )
+            else:
                 logger.info(
-                    f"Removed {len(songs_to_remove_ids)} songs (no longer liked by user or skipped during sync) from DB."
+                    "Skipping deletion of old songs because sync flag was not set."
                 )
 
-        logger.info("Data sync complete. Redirecting to liked songs page.")
-        # --- End Data Sync to Database ---
+                logger.info("Data sync complete. Redirecting to liked songs page.")
+                # --- End Data Sync to Database ---
 
         return redirect("spotify_integration:liked_songs")
 
@@ -495,9 +501,7 @@ def create_playlist(request):
     for i in range(0, len(track_uris), 100):
         sp.playlist_add_items(playlist_id, track_uris[i : i + 100])
 
-    return JsonResponse(
-        {
-            "message": f"Playlist '{playlist_name}' created with {len(track_uris)} songs!",
-            "playlist_url": playlist["external_urls"]["spotify"],
-        }
+    messages.success(
+        request, f"Playlist '{playlist_name}' created with {len(track_uris)} songs!"
     )
+    return redirect("spotify_integration:liked_songs")
