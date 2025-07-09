@@ -462,10 +462,7 @@ def liked_songs(request):
 @csrf_exempt
 @require_POST
 def create_playlist(request):
-    """
-    Creates a Spotify playlist with the filtered songs and adds them to user's account.
-    """
-    genre = request.POST.get("genre")
+    genre = request.POST.get("genre", "").strip().lower()
     if not genre:
         return JsonResponse({"error": "Genre not provided"}, status=400)
 
@@ -476,27 +473,25 @@ def create_playlist(request):
 
     sp = spotipy.Spotify(auth=token_info["access_token"])
 
-    # Get current user info
     user = sp.current_user()
     user_id = user["id"]
 
-    # Generate playlist name
     playlist_name = f"{genre} Playlist ({timezone.now().strftime('%Y-%m-%d')})"
-
-    # Create the playlist
     playlist = sp.user_playlist_create(user=user_id, name=playlist_name, public=False)
     playlist_id = playlist["id"]
 
-    # Get songs of the given genre
+    # Case-insensitive match
     genre_songs = (
-        Song.objects.prefetch_related("artists__genres")
-        .filter(artists__genres__broad_genres__name=genre)
+        Song.objects.prefetch_related("artists__genres__broad_genres")
+        .filter(artists__genres__broad_genres__name__iexact=genre)
         .distinct()
     )
 
+    print(f"[DEBUG] Requested genre: '{genre}'")
+    print(f"[DEBUG] Found {genre_songs.count()} songs with genre '{genre}'")
+
     track_uris = [f"spotify:track:{song.spotify_id}" for song in genre_songs]
 
-    # Spotify limits to 100 tracks per add call
     for i in range(0, len(track_uris), 100):
         sp.playlist_add_items(playlist_id, track_uris[i : i + 100])
 
