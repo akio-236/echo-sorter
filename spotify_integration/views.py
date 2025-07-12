@@ -64,6 +64,9 @@ def spotify_callback(request):
     """
     sp_oauth = get_spotify_auth()
     code = request.GET.get("code")
+    if request.session.get("data_synced") and request.GET.get("sync") != "true":
+        logger.info("Data already synced. Skipping Spotify API sync.")
+        return redirect("spotify_integration:liked_songs")
 
     if not code:
         error_message = request.GET.get("error", "No authorization code received.")
@@ -323,7 +326,11 @@ def spotify_callback(request):
                     "Skipping deletion of old songs because sync flag was not set."
                 )
 
-                logger.info("Data sync complete. Redirecting to liked songs page.")
+                logger.info("Data sync complete. Marking session as synced.")
+                request.session["data_synced"] = True
+                request.session["last_sync_time"] = timezone.now().isoformat()
+                return redirect("spotify_integration:liked_songs")
+
                 # --- End Data Sync to Database ---
 
         return redirect("spotify_integration:liked_songs")
@@ -452,6 +459,28 @@ def liked_songs(request):
     )
 
 
+def playlist_exists(sp, playlist_name):
+    """Check if a playlist with the given name exists (case-insensitive)."""
+    logger.info(f"Checking if playlist '{playlist_name}' already exists...")
+    limit = 50
+    offset = 0
+    playlist_name_clean = playlist_name.strip().lower()
+    while True:
+        response = sp.current_user_playlists(limit=limit, offset=offset)
+        for playlist in response["items"]:
+            existing_name = playlist["name"].strip().lower()
+            logger.debug(f"Found playlist: '{existing_name}'")
+            if existing_name == playlist_name_clean:
+                logger.info(f"Playlist match found: '{playlist['name']}'")
+                return playlist
+        if response["next"]:
+            offset += limit
+        else:
+            break
+    logger.info("No matching playlist found.")
+    return None
+
+
 @csrf_protect
 @require_POST
 def create_playlist(request):
@@ -465,32 +494,56 @@ def create_playlist(request):
         return redirect("spotify_integration:auth_spotify")
 
     sp = spotipy.Spotify(auth=token_info["access_token"])
-
     user = sp.current_user()
     user_id = user["id"]
 
-    playlist_name = f"{genre} Playlist ({timezone.now().strftime('%Y-%m-%d')})"
+    playlist_name = f"{genre.capitalize()} Playlist"
+
+    # 🔁 Check Django session cache (optional fallback)
+    created_playlists = request.session.get("created_playlists", {})
+    if genre in created_playlists:
+        logger.info(f"Playlist found in session cache: {playlist_name}")
+        return JsonResponse(
+            {
+                "message": f"Playlist '{playlist_name}' already exists (cached).",
+                "playlist_url": created_playlists[genre],
+            },
+            status=200,
+        )
+
+    # 🔍 Check if playlist exists on Spotify
+    existing_playlist = playlist_exists(sp, playlist_name)
+    if existing_playlist:
+        logger.info(f"Playlist '{playlist_name}' already exists on Spotify.")
+        return JsonResponse(
+            {
+                "message": f"Playlist '{playlist_name}' already exists.",
+                "playlist_url": existing_playlist["external_urls"]["spotify"],
+            },
+            status=200,
+        )
+
+    # ✅ Create the playlist
+    logger.info(f"Creating new playlist: {playlist_name}")
     playlist = sp.user_playlist_create(user=user_id, name=playlist_name, public=False)
     playlist_id = playlist["id"]
 
-    # Case-insensitive match
     genre_songs = (
         Song.objects.prefetch_related("artists__genres__broad_genres")
         .filter(artists__genres__broad_genres__name__iexact=genre)
         .distinct()
     )
 
-    print(f"[DEBUG] Requested genre: '{genre}'")
-    print(f"[DEBUG] Found {genre_songs.count()} songs with genre '{genre}'")
-
     track_uris = [f"spotify:track:{song.spotify_id}" for song in genre_songs]
 
     for i in range(0, len(track_uris), 100):
         sp.playlist_add_items(playlist_id, track_uris[i : i + 100])
 
-    messages.success(
-        request, f"Playlist '{playlist_name}' created with {len(track_uris)} songs!"
-    )
+    # 🧠 Store created playlist URL in session
+    created_playlists[genre] = playlist["external_urls"]["spotify"]
+    request.session["created_playlists"] = created_playlists
+
+    logger.info(f"Playlist created: {playlist_name} with {len(track_uris)} songs.")
     return JsonResponse(
         {
             "message": f"Playlist '{playlist_name}' created with {len(track_uris)} songs!",

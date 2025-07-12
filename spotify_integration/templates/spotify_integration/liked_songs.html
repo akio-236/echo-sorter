@@ -14,16 +14,17 @@
       h1 {
         color: #1db954;
       }
-
       .filter-section {
         margin-bottom: 20px;
         padding: 15px;
         border: 1px solid #ddd;
         background-color: #fff;
         border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
       }
       .filter-section label {
-        margin-right: 10px;
         font-weight: bold;
       }
       .filter-section select,
@@ -37,13 +38,11 @@
         background-color: #1db954;
         color: white;
         border: none;
-        margin-left: 10px;
         cursor: pointer;
       }
       .filter-section button:hover {
         background-color: #1ed760;
       }
-
       .song-list {
         display: flex;
         flex-wrap: wrap;
@@ -97,7 +96,6 @@
       .song-item a:hover {
         background-color: #1ed760;
       }
-
       #toast {
         visibility: hidden;
         min-width: 250px;
@@ -118,7 +116,6 @@
   </head>
   <body>
     <h1>Your Liked Songs ({{ songs|length }} total)</h1>
-
     <div class="filter-section">
       <label for="genreFilter">Filter by Genre:</label>
       <select id="genreFilter">
@@ -129,13 +126,13 @@
       </select>
       <button id="createPlaylistBtn">🎧 Create Playlist</button>
     </div>
-
     <div class="song-list">
       {% for song in songs %}
       <div class="song-item" data-genres="{{ song.genres_csv }}">
-        {% if song.image_url %}
-        <img src="{{ song.image_url }}" alt="{{ song.album }} Album Art" />
-        {% endif %}
+        {% if song.image_url %}<img
+          src="{{ song.image_url }}"
+          alt="{{ song.album }} Album Art"
+        />{% endif %}
         <h3>{{ song.title }}</h3>
         <p>by {{ song.artist }}</p>
         <p>Album: {{ song.album }}</p>
@@ -143,9 +140,11 @@
         <p class="genres">Genres: {{ song.broad_genres|join:", " }}</p>
         {% else %}
         <p class="genres">Genres: N/A</p>
-        {% endif %} {% if song.preview_url %}
-        <a href="{{ song.preview_url }}" target="_blank">Listen Preview</a>
-        {% endif %}
+        {% endif %} {% if song.preview_url %}<a
+          href="{{ song.preview_url }}"
+          target="_blank"
+          >Listen Preview</a
+        >{% endif %}
       </div>
       {% empty %}
       <p>
@@ -154,9 +153,7 @@
       </p>
       {% endfor %}
     </div>
-
     <div id="toast"></div>
-
     <script>
       document.addEventListener("DOMContentLoaded", function () {
         const genreFilter = document.getElementById("genreFilter");
@@ -181,11 +178,11 @@
               showToast("❗ Please select a specific genre first", "warning");
               return;
             }
-
             fetch("/spotify/create_playlist/", {
               method: "POST",
               headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
+                "X-CSRFToken": getCSRFToken(),
               },
               body: `genre=${encodeURIComponent(selectedGenre)}`,
             })
@@ -214,7 +211,6 @@
 
         function showToast(message, type = "info") {
           const toast = document.getElementById("toast");
-
           toast.textContent = message;
           toast.style.backgroundColor =
             type === "success"
@@ -224,11 +220,17 @@
               : type === "warning"
               ? "#f0ad4e"
               : "#333";
-
           toast.style.visibility = "visible";
           setTimeout(() => {
             toast.style.visibility = "hidden";
           }, 3000);
+        }
+
+        function getCSRFToken() {
+          const cookieValue = document.cookie
+            .split("; ")
+            .find((row) => row.startsWith("csrftoken="));
+          return cookieValue ? cookieValue.split("=")[1] : "";
         }
       });
     </script>
