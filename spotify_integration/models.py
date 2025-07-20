@@ -51,6 +51,7 @@ class Song(models.Model):
         Album, on_delete=models.CASCADE, related_name="songs_on_album"
     )  # Changed related_name
     preview_url = models.URLField(max_length=500, blank=True, null=True)
+    user_id = models.CharField(max_length=100, null=True, blank=True)
 
     def __str__(self):
         return self.title
