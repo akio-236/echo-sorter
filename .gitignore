@@ -21,3 +21,53 @@ local_tokes.json
 # Operating System specific
 .DS_Store # macOS
 Thumbs.db # Windows
+
+spotify_cache/
+
+# === GLOBAL ===
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.log
+.env
+.DS_Store
+*.swp
+*.swo
+
+# === PYTHON VENV ===
+venv/
+env/
+ENV/
+.venv/
+
+# === DJANGO ===
+staticfiles/
+media/
+db.sqlite3
+*.pot
+*.pyc
+*.pyo
+*.pyd
+
+# === FRONTEND ===
+echo_groove_frontend/node_modules/
+echo_groove_frontend/dist/
+echo_groove_frontend/.vite/
+echo_groove_frontend/.env
+echo_groove_frontend/.DS_Store
+
+# === IDE / TOOLS ===
+.vscode/
+.idea/
+*.code-workspace
+
+# === TEST / COVERAGE ===
+.coverage
+htmlcov/
+*.cover
+*.py,cover
+
+# === OS Files ===
+Thumbs.db
+ehthumbs.db
+desktop.ini

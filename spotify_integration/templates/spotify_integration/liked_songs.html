@@ -14,17 +14,16 @@
       h1 {
         color: #1db954;
       }
+
       .filter-section {
         margin-bottom: 20px;
         padding: 15px;
         border: 1px solid #ddd;
         background-color: #fff;
         border-radius: 8px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
       }
       .filter-section label {
+        margin-right: 10px;
         font-weight: bold;
       }
       .filter-section select,
@@ -38,11 +37,13 @@
         background-color: #1db954;
         color: white;
         border: none;
+        margin-left: 10px;
         cursor: pointer;
       }
       .filter-section button:hover {
         background-color: #1ed760;
       }
+
       .song-list {
         display: flex;
         flex-wrap: wrap;
@@ -96,6 +97,7 @@
       .song-item a:hover {
         background-color: #1ed760;
       }
+
       #toast {
         visibility: hidden;
         min-width: 250px;
@@ -116,35 +118,34 @@
   </head>
   <body>
     <h1>Your Liked Songs ({{ songs|length }} total)</h1>
+
     <div class="filter-section">
       <label for="genreFilter">Filter by Genre:</label>
       <select id="genreFilter">
         <option value="all">All Genres</option>
-        {% for genre in broad_genres_for_filter %}
-        <option value="{{ genre|lower }}">{{ genre }}</option>
-        {% endfor %}
       </select>
       <button id="createPlaylistBtn">🎧 Create Playlist</button>
     </div>
+
     <div class="song-list">
       {% for song in songs %}
-      <div class="song-item" data-genres="{{ song.genres_csv }}">
-        {% if song.image_url %}<img
-          src="{{ song.image_url }}"
-          alt="{{ song.album }} Album Art"
-        />{% endif %}
+      <div
+        class="song-item"
+        data-genres="{{ song.broad_genres|join:', '|lower }}"
+      >
+        {% if song.image_url %}
+        <img src="{{ song.image_url }}" alt="{{ song.album }} Album Art" />
+        {% endif %}
         <h3>{{ song.title }}</h3>
         <p>by {{ song.artist }}</p>
         <p>Album: {{ song.album }}</p>
         {% if song.broad_genres %}
-        <p class="genres">Genres: {{ song.broad_genres|join:", " }}</p>
+        <p class="genres">Genres: {{ song.broad_genres|join:', ' }}</p>
         {% else %}
         <p class="genres">Genres: N/A</p>
-        {% endif %} {% if song.preview_url %}<a
-          href="{{ song.preview_url }}"
-          target="_blank"
-          >Listen Preview</a
-        >{% endif %}
+        {% endif %} {% if song.preview_url %}
+        <a href="{{ song.preview_url }}" target="_blank">Listen Preview</a>
+        {% endif %}
       </div>
       {% empty %}
       <p>
@@ -153,12 +154,35 @@
       </p>
       {% endfor %}
     </div>
+
     <div id="toast"></div>
+
     <script>
       document.addEventListener("DOMContentLoaded", function () {
         const genreFilter = document.getElementById("genreFilter");
         const songItems = document.querySelectorAll(".song-item");
+        const allBroadGenres = new Set();
 
+        // Extract genres from song data
+        songItems.forEach((item) => {
+          const genresAttr = item.dataset.genres;
+          if (genresAttr) {
+            genresAttr.split(",").forEach((genre) => {
+              if (genre.trim()) allBroadGenres.add(genre.trim());
+            });
+          }
+        });
+
+        // Populate genre dropdown
+        const sortedUniqueGenres = Array.from(allBroadGenres).sort();
+        sortedUniqueGenres.forEach((genre) => {
+          const option = document.createElement("option");
+          option.value = genre;
+          option.textContent = genre.charAt(0).toUpperCase() + genre.slice(1);
+          genreFilter.appendChild(option);
+        });
+
+        // Filtering logic
         genreFilter.addEventListener("change", function () {
           const selectedGenre = this.value;
           songItems.forEach((item) => {
@@ -170,6 +194,7 @@
           });
         });
 
+        // Playlist creation
         document
           .getElementById("createPlaylistBtn")
           .addEventListener("click", function () {
@@ -178,6 +203,7 @@
               showToast("❗ Please select a specific genre first", "warning");
               return;
             }
+
             fetch("/spotify/create_playlist/", {
               method: "POST",
               headers: {
@@ -211,7 +237,9 @@
 
         function showToast(message, type = "info") {
           const toast = document.getElementById("toast");
+
           toast.textContent = message;
+
           toast.style.backgroundColor =
             type === "success"
               ? "#1db954"
@@ -220,10 +248,9 @@
               : type === "warning"
               ? "#f0ad4e"
               : "#333";
+
           toast.style.visibility = "visible";
-          setTimeout(() => {
-            toast.style.visibility = "hidden";
-          }, 3000);
+          setTimeout(() => (toast.style.visibility = "hidden"), 3000);
         }
 
         function getCSRFToken() {
