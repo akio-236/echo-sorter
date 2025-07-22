@@ -1,73 +1,81 @@
- Django specific ignores
-*.log
-*.pot
-*.pyc
-__pycache__/
-celerybeat-schedule/
-db.sqlite3
-media/  # User-uploaded files, if you implement them later
+# ===================================
+# 🌐 Frontend (React + Vite + Loveable)
+# ===================================
+/frontend/node_modules/
+/frontend/.vite/
+/frontend/.next/
+/frontend/dist/
+/frontend/build/
+/frontend/.DS_Store
+/frontend/.env*
+/frontend/.eslintcache
 
-# Virtual environment
-venv/
-.env  # If you use a .env file for environment variables
-
-# Spotipy token cache
-local_tokes.json
-
-# IDE specific ignores (add if you use these IDEs)
-.idea/  # PyCharm
-.vscode/  # VS Code
-
-# Operating System specific
-.DS_Store # macOS
-Thumbs.db # Windows
-
-spotify_cache/
-
-# === GLOBAL ===
-__pycache__/
-*.py[cod]
+# ===================================
+# 🐍 Backend (Django)
+# ===================================
+/__pycache__/
+/**/__pycache__/
+/*.pyc
 *.sqlite3
 *.log
-.env
-.DS_Store
-*.swp
-*.swo
-
-# === PYTHON VENV ===
-venv/
-env/
-ENV/
-.venv/
-
-# === DJANGO ===
-staticfiles/
-media/
-db.sqlite3
 *.pot
 *.pyc
 *.pyo
-*.pyd
+*.db
+*.swp
+*.swo
+*.bak
 
-# === FRONTEND ===
-echo_groove_frontend/node_modules/
-echo_groove_frontend/dist/
-echo_groove_frontend/.vite/
-echo_groove_frontend/.env
-echo_groove_frontend/.DS_Store
+# Django specific
+/media/
+/staticfiles/
+/static/
+/.env
+.env.*
+*.secret
+/secrets.json
+db.sqlite3
 
-# === IDE / TOOLS ===
+# Pip & Python
+venv/
+.venv/
+env/
+.envrc
+
+# ===================================
+# 🚀 VSCode & OS/IDE Metadata
+# ===================================
 .vscode/
 .idea/
-*.code-workspace
+.DS_Store
+Thumbs.db
 
-# === TEST / COVERAGE ===
+# ===================================
+# 🧪 Testing / Coverage
+# ===================================
 .coverage
 htmlcov/
-*.cover
-*.py,cover
+.tox/
+.nox/
+pytest_cache/
+coverage.xml
+nosetests.xml
+test-results.xml
 
-# === OS Files ===
-Thumbs.db
-ehthumbs.db
-desktop.ini
+# ===================================
+# 🐘 Git
+# ===================================
+*.orig
+*.rej
+*.un~
+*.tmp
+*.bak
+*.backup
+*.log
+
+# ===================================
+# 📦 Package Locks (optional)
+# ===================================
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
