@@ -3,68 +3,78 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EchoSorter - Organize Your Music</title>
+    <title>EchoSorter - Discover Your Sound</title>
     <style>
       body {
-        font-family: sans-serif;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        min-height: 100vh;
         margin: 0;
-        background-color: #1db954; /* Spotify Green */
+        font-family: "Segoe UI", sans-serif;
+        background: linear-gradient(to right, #1db954, #191414);
         color: white;
-        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        overflow: hidden;
       }
+
       .container {
+        text-align: center;
         padding: 40px;
+        background-color: rgba(0, 0, 0, 0.7);
         border-radius: 15px;
-        background-color: rgba(0, 0, 0, 0.5);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
       }
+
       h1 {
         font-size: 3em;
-        margin-bottom: 20px;
+        margin-bottom: 10px;
       }
+
       p {
         font-size: 1.2em;
         margin-bottom: 30px;
+        color: #ccc;
       }
-      .connect-button {
-        background-color: #1ed760; /* Slightly darker Spotify Green */
-        color: white;
-        padding: 15px 30px;
-        text-decoration: none;
-        border-radius: 50px;
-        font-size: 1.2em;
+
+      .spotify-button {
+        padding: 14px 28px;
+        font-size: 1.1em;
         font-weight: bold;
-        transition: background-color 0.3s ease;
         border: none;
-        cursor: pointer;
+        border-radius: 30px;
+        background-color: #1db954;
+        color: white;
+        text-decoration: none;
+        transition: background-color 0.3s ease;
       }
-      .connect-button:hover {
-        background-color: #179b48; /* Even darker green on hover */
+
+      .spotify-button:hover {
+        background-color: #1ed760;
+      }
+
+      @media (max-width: 600px) {
+        h1 {
+          font-size: 2em;
+        }
+        p {
+          font-size: 1em;
+        }
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>Welcome to EchoSorter! 🎶</h1>
+      <h1>Welcome to EchoSorter 🎧</h1>
       <p>
-        Transform your vast "Liked Songs" collection into an intelligently
-        organized library.
+        Effortlessly organize your Spotify library by genre and mood. Discover
+        the hidden patterns in your musical taste.
       </p>
-      <p>Ready to sort your music by genre and language?</p>
       <a
+        class="spotify-button"
         href="{% url 'spotify_integration:auth_spotify' %}"
-        class="connect-button"
       >
-        Connect with Spotify
+        🔗 Connect with Spotify
       </a>
-      <p style="margin-top: 20px; font-size: 0.9em">
-        (Your liked songs are safe, we just organize them!)
-      </p>
     </div>
   </body>
 </html>

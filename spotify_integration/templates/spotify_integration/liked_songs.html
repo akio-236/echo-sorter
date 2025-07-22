@@ -13,7 +13,8 @@
       }
       h1 {
         color: #1db954;
-      } /* Spotify Green */
+      }
+
       .filter-section {
         margin-bottom: 20px;
         padding: 15px;
@@ -25,11 +26,24 @@
         margin-right: 10px;
         font-weight: bold;
       }
-      .filter-section select {
-        padding: 8px;
+      .filter-section select,
+      .filter-section button {
+        padding: 8px 15px;
         border-radius: 5px;
         border: 1px solid #ccc;
+        font-size: 14px;
       }
+      .filter-section button {
+        background-color: #1db954;
+        color: white;
+        border: none;
+        margin-left: 10px;
+        cursor: pointer;
+      }
+      .filter-section button:hover {
+        background-color: #1ed760;
+      }
+
       .song-list {
         display: flex;
         flex-wrap: wrap;
@@ -42,7 +56,7 @@
         border-radius: 8px;
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         padding: 15px;
-        width: 280px; /* Fixed width for better layout */
+        width: 280px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -83,6 +97,23 @@
       .song-item a:hover {
         background-color: #1ed760;
       }
+
+      #toast {
+        visibility: hidden;
+        min-width: 250px;
+        background-color: #1db954;
+        color: white;
+        text-align: center;
+        border-radius: 8px;
+        padding: 12px;
+        position: fixed;
+        z-index: 999;
+        left: 50%;
+        bottom: 30px;
+        transform: translateX(-50%);
+        font-size: 14px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      }
     </style>
   </head>
   <body>
@@ -92,16 +123,15 @@
       <label for="genreFilter">Filter by Genre:</label>
       <select id="genreFilter">
         <option value="all">All Genres</option>
-        {# Populate with unique broad genres dynamically using JavaScript later
-        #}
       </select>
+      <button id="createPlaylistBtn">🎧 Create Playlist</button>
     </div>
 
     <div class="song-list">
       {% for song in songs %}
       <div
         class="song-item"
-        data-genres="{{ song.broad_genres|join:','|lower }}"
+        data-genres="{{ song.broad_genres|join:', '|lower }}"
       >
         {% if song.image_url %}
         <img src="{{ song.image_url }}" alt="{{ song.album }} Album Art" />
@@ -125,52 +155,110 @@
       {% endfor %}
     </div>
 
-    {# JavaScript will go here #}
+    <div id="toast"></div>
+
     <script>
       document.addEventListener("DOMContentLoaded", function () {
         const genreFilter = document.getElementById("genreFilter");
         const songItems = document.querySelectorAll(".song-item");
-        const allBroadGenres = new Set(); // To collect unique broad genres for the dropdown
+        const allBroadGenres = new Set();
 
-        // Collect all broad genres from the songs and populate the dropdown
+        // Extract genres from song data
         songItems.forEach((item) => {
-          const genresAttr = item.dataset.genres; // "rock,pop,electronic"
+          const genresAttr = item.dataset.genres;
           if (genresAttr) {
             genresAttr.split(",").forEach((genre) => {
-              if (genre) {
-                // Avoid empty strings
-                allBroadGenres.add(genre);
-              }
+              if (genre.trim()) allBroadGenres.add(genre.trim());
             });
           }
         });
 
-        // Populate the dropdown
+        // Populate genre dropdown
         const sortedUniqueGenres = Array.from(allBroadGenres).sort();
         sortedUniqueGenres.forEach((genre) => {
           const option = document.createElement("option");
           option.value = genre;
-          option.textContent = genre.charAt(0).toUpperCase() + genre.slice(1); // Capitalize first letter
+          option.textContent = genre.charAt(0).toUpperCase() + genre.slice(1);
           genreFilter.appendChild(option);
         });
 
+        // Filtering logic
         genreFilter.addEventListener("change", function () {
-          const selectedGenre = this.value; // "all" or a specific genre like "rock"
-
+          const selectedGenre = this.value;
           songItems.forEach((item) => {
-            const songGenres = item.dataset.genres.split(","); // Array of broad genres for this song
-            if (selectedGenre === "all") {
-              item.style.display = "flex"; // Show all songs
-            } else {
-              // Check if the selected genre is in the song's broad genres
-              if (songGenres.includes(selectedGenre)) {
-                item.style.display = "flex";
-              } else {
-                item.style.display = "none";
-              }
-            }
+            const songGenres = item.dataset.genres.split(",");
+            item.style.display =
+              selectedGenre === "all" || songGenres.includes(selectedGenre)
+                ? "flex"
+                : "none";
           });
         });
+
+        // Playlist creation
+        document
+          .getElementById("createPlaylistBtn")
+          .addEventListener("click", function () {
+            const selectedGenre = genreFilter.value;
+            if (!selectedGenre || selectedGenre === "all") {
+              showToast("❗ Please select a specific genre first", "warning");
+              return;
+            }
+
+            fetch("/spotify/create_playlist/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-CSRFToken": getCSRFToken(),
+              },
+              body: `genre=${encodeURIComponent(selectedGenre)}`,
+            })
+              .then((response) => {
+                if (!response.ok) {
+                  return response.json().then((data) => {
+                    throw new Error(data.error || "Unknown error");
+                  });
+                }
+                return response.json();
+              })
+              .then((data) => {
+                showToast("✅ " + data.message, "success");
+                if (data.playlist_url) {
+                  setTimeout(() => {
+                    window.open(data.playlist_url, "_blank");
+                    window.location.href = "/spotify/liked_songs/";
+                  }, 1500);
+                }
+              })
+              .catch((err) => {
+                showToast("❌ " + err.message, "error");
+                console.error(err);
+              });
+          });
+
+        function showToast(message, type = "info") {
+          const toast = document.getElementById("toast");
+
+          toast.textContent = message;
+
+          toast.style.backgroundColor =
+            type === "success"
+              ? "#1db954"
+              : type === "error"
+              ? "#d9534f"
+              : type === "warning"
+              ? "#f0ad4e"
+              : "#333";
+
+          toast.style.visibility = "visible";
+          setTimeout(() => (toast.style.visibility = "hidden"), 3000);
+        }
+
+        function getCSRFToken() {
+          const cookieValue = document.cookie
+            .split("; ")
+            .find((row) => row.startsWith("csrftoken="));
+          return cookieValue ? cookieValue.split("=")[1] : "";
+        }
       });
     </script>
   </body>
