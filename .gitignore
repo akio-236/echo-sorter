@@ -1,23 +1,81 @@
- Django specific ignores
+# ===================================
+# 🌐 Frontend (React + Vite + Loveable)
+# ===================================
+/frontend/node_modules/
+/frontend/.vite/
+/frontend/.next/
+/frontend/dist/
+/frontend/build/
+/frontend/.DS_Store
+/frontend/.env*
+/frontend/.eslintcache
+
+# ===================================
+# 🐍 Backend (Django)
+# ===================================
+/__pycache__/
+/**/__pycache__/
+/*.pyc
+*.sqlite3
 *.log
 *.pot
 *.pyc
-__pycache__/
-celerybeat-schedule/
+*.pyo
+*.db
+*.swp
+*.swo
+*.bak
+
+# Django specific
+/media/
+/staticfiles/
+/static/
+/.env
+.env.*
+*.secret
+/secrets.json
 db.sqlite3
-media/  # User-uploaded files, if you implement them later
 
-# Virtual environment
+# Pip & Python
 venv/
-.env  # If you use a .env file for environment variables
+.venv/
+env/
+.envrc
 
-# Spotipy token cache
-local_tokes.json
+# ===================================
+# 🚀 VSCode & OS/IDE Metadata
+# ===================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
 
-# IDE specific ignores (add if you use these IDEs)
-.idea/  # PyCharm
-.vscode/  # VS Code
+# ===================================
+# 🧪 Testing / Coverage
+# ===================================
+.coverage
+htmlcov/
+.tox/
+.nox/
+pytest_cache/
+coverage.xml
+nosetests.xml
+test-results.xml
 
-# Operating System specific
-.DS_Store # macOS
-Thumbs.db # Windows
+# ===================================
+# 🐘 Git
+# ===================================
+*.orig
+*.rej
+*.un~
+*.tmp
+*.bak
+*.backup
+*.log
+
+# ===================================
+# 📦 Package Locks (optional)
+# ===================================
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
