@@ -26,6 +26,7 @@ from spotify_integration import views as spotify_views
 urlpatterns = [
     path("admin/", admin.site.urls),
     # This makes the root URL '/' point to the new home view
-    path("", spotify_views.home, name="home"),  # CHANGED THIS LINE
+    path("", spotify_views.home, name="home"),
+    # CHANGED THIS LINE
     path("spotify/", include("spotify_integration.urls")),
 ]

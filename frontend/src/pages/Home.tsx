@@ -1,5 +1,6 @@
 
 import { Music, Headphones, Play } from "lucide-react";
+import heroBackground from "../assets/hero-background.jpg";
 
 const Home = () => {
   const handleSpotifyConnect = () => {
@@ -8,30 +9,20 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-spotify-dark flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-spotify-green/20 via-transparent to-spotify-green/10"></div>
-        <div 
-          className="absolute inset-0" 
-          style={{
-            backgroundImage: `
-              radial-gradient(circle at 20% 80%, rgba(29, 185, 84, 0.1) 0%, transparent 50%),
-              radial-gradient(circle at 80% 20%, rgba(29, 185, 84, 0.05) 0%, transparent 50%),
-              radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.02) 0%, transparent 50%)
-            `
-          }}
-        ></div>
-        <div 
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `
-              linear-gradient(45deg, transparent 40%, rgba(29, 185, 84, 0.02) 50%, transparent 60%),
-              linear-gradient(-45deg, transparent 40%, rgba(179, 179, 179, 0.01) 50%, transparent 60%)
-            `
-          }}
-        ></div>
-      </div>
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url(${heroBackground})`
+        }}
+      ></div>
+      
+      {/* Dark Overlay */}
+      <div className="absolute inset-0 bg-black/70"></div>
+      
+      {/* Spotify Green Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-spotify-green/20 via-transparent to-spotify-green/10"></div>
 
       <div className="max-w-md w-full text-center space-y-8 animate-fade-in relative z-10">
         {/* Logo and branding */}
