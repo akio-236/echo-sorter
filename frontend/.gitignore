@@ -1,0 +1,81 @@
+# ===================================
+# 🌐 Frontend (React + Vite + Loveable)
+# ===================================
+/frontend/node_modules/
+/frontend/.vite/
+/frontend/.next/
+/frontend/dist/
+/frontend/build/
+/frontend/.DS_Store
+/frontend/.env*
+/frontend/.eslintcache
+
+# ===================================
+# 🐍 Backend (Django)
+# ===================================
+/__pycache__/
+/**/__pycache__/
+/*.pyc
+*.sqlite3
+*.log
+*.pot
+*.pyc
+*.pyo
+*.db
+*.swp
+*.swo
+*.bak
+
+# Django specific
+/media/
+/staticfiles/
+/static/
+/.env
+.env.*
+*.secret
+/secrets.json
+db.sqlite3
+
+# Pip & Python
+venv/
+.venv/
+env/
+.envrc
+
+# ===================================
+# 🚀 VSCode & OS/IDE Metadata
+# ===================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ===================================
+# 🧪 Testing / Coverage
+# ===================================
+.coverage
+htmlcov/
+.tox/
+.nox/
+pytest_cache/
+coverage.xml
+nosetests.xml
+test-results.xml
+
+# ===================================
+# 🐘 Git
+# ===================================
+*.orig
+*.rej
+*.un~
+*.tmp
+*.bak
+*.backup
+*.log
+
+# ===================================
+# 📦 Package Locks (optional)
+# ===================================
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
