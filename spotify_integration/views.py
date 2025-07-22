@@ -53,9 +53,6 @@ def get_spotify_auth():
 
 # --- View for the Home Page ---
 def home(request):
-    """
-    Renders the welcome page with the 'Connect with Spotify' button.
-    """
     return render(request, "home.html")
 
 
