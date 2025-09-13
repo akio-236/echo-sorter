@@ -10,11 +10,10 @@ Echo Sorter is a powerful yet simple Django web application designed to bring or
 
 * **Seamless Spotify Authentication**: Securely log in using your existing Spotify account with just one click.
 * **Automatic Song Fetching**: The app automatically scans and fetches all the metadata for every track in your "Liked Songs" playlist.
-* **Intelligent Genre Sorting**: Songs are sorted using a custom-built, broad genre mapping. For example, genres like *'alt-rock'*, *'punk'*, and *'classic rock'* are all grouped under the main **Rock** category.
-* **One-Click Playlist Creation**: Once sorted, you can instantly create a new playlist on your Spotify account for any genre group.
+* **Intelligent Genre Sorting**: Songs are sorted using a custom-built, broad genre mapping.
+* **One-Click Playlist Creation**: Instantly create a new, organized playlist on your Spotify account for any genre group.
 
 ***
-
 ## 🛠️ Tech Stack
 
 * **Backend**: Python, Django
@@ -23,13 +22,32 @@ Echo Sorter is a powerful yet simple Django web application designed to bring or
 * **API**: [Spotipy](https://spotipy.readthedocs.io/en/2.22.1/) for the Spotify Web API
 
 ***
+
 ## 💡 How It Works
 
-The application follows a simple but effective workflow:
-1.  **Authentication**: It uses the **Spotipy** library to handle the Spotify OAuth 2.0 flow, allowing users to log in securely.
-2.  **Data Fetching**: After authentication, it calls the Spotify API to retrieve the user's entire "Liked Songs" library, including detailed metadata for each track (artist, album, and associated genres).
-3.  **Genre Mapping**: A custom logic layer processes the genre data for each track. It maps specific, niche genres to broader, more useful categories defined within the application.
-4.  **Playlist Creation**: When a user requests a playlist, the app uses another API call to create a new public playlist in the user's Spotify account and adds all the relevant tracks to it.
+1.  **Authentication**: Uses **Spotipy** to handle the Spotify OAuth 2.0 flow for secure login.
+2.  **Data Fetching**: After authentication, it calls the Spotify API to retrieve the user's "Liked Songs" library.
+3.  **Genre Mapping**: A custom logic layer processes the genre data for each track, mapping specific genres to broader categories.
+4.  **Playlist Creation**: On user request, it uses another API call to create a new playlist and add all relevant tracks.
+
+***
+
+## 📸 Screenshots
+
+Here is a preview of the application's main pages.
+
+### Home Page
+The main landing page that allows a user to log in with their Spotify account.
+<img width="1857" height="940" alt="image" src="https://github.com/user-attachments/assets/058615a7-6ca6-433b-80bd-f71329be7ba5" />
+
+
+### Liked Songs Page
+After logging in, this page displays your liked songs sorted into genre groups, with a button to create a playlist for each category.
+<img width="1848" height="931" alt="image" src="https://github.com/user-attachments/assets/42bd7377-4bbb-4929-a997-6992eb213e56" />
+
+***
+
+
 
 ## 🚀 Getting Started
 
@@ -62,7 +80,7 @@ This project is currently intended for local development. Follow these steps to 
         ```
 
 3.  **Install dependencies:**
-    *Create a `requirements.txt` file with the necessary packages (like Django and Spotipy) and install them.*
+    *Create a `requirements.txt` file with the necessary packages and install them.*
     ```sh
     pip install django spotipy
     # Add other dependencies as needed
@@ -71,8 +89,8 @@ This project is currently intended for local development. Follow these steps to 
 4.  **Configure Spotify API Credentials:**
     * Go to your [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/).
     * Create a new app to get your `Client ID` and `Client Secret`.
-    * In the app settings on the dashboard, add a **Redirect URI**. For local development, this is typically `http://127.0.0.1:8000/callback` or a similar URL handled by your Django app.
-    * Store these credentials securely. It is highly recommended to use environment variables instead of hardcoding them in your code. You can place them in your Django `settings.py` file for local testing:
+    * In the app settings on the dashboard, add a **Redirect URI**. For local development, this is typically `http://127.0.0.1:8000/callback`.
+    * Store these credentials securely in your Django `settings.py` file:
         ```python
         # settings.py
         SPOTIPY_CLIENT_ID = 'YOUR_CLIENT_ID'
@@ -99,10 +117,9 @@ This project is currently intended for local development. Follow these steps to 
 ## 📋 Usage
 
 1.  Open your web browser and navigate to `http://127.0.0.1:8000`.
-2.  Click the "Login with Spotify" button and authorize the application.
-3.  Once redirected, the app will display your liked songs sorted into genre groups.
-4.  Find a genre group you want to create a playlist for and click the "Create Playlist" button next to it.
-5.  Check your Spotify account—a new playlist with the sorted songs will be there!
+2.  On the **Home Page**, click the "Login with Spotify" button and authorize the application.
+3.  You will be redirected to the **Liked Songs Page**, which will display your sorted genre groups.
+4.  Click the "Create Playlist" button next to any genre to instantly add that playlist to your Spotify account.
 
 ***
 
