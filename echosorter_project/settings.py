@@ -38,7 +38,6 @@ SPOTIPY_REDIRECT_URI = os.environ.get("SPOTIPY_REDIRECT_URI")
 
 print(f"DEBUG: SPOTIPY_REDIRECT_URI is set to: {SPOTIPY_REDIRECT_URI}")
 
-
 if not all([SPOTIPY_CLIENT_ID, SPOTIPY_CLIENT_SECRET, SPOTIPY_REDIRECT_URI]):
     raise ValueError(
         "Spotify API credentials (Client ID, Client Secret, Redirect URI) not found in environment variables. Please check your .env file."
