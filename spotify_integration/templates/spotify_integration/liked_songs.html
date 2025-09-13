@@ -4,120 +4,230 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EchoSorter - Liked Songs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
-      body {
-        font-family: sans-serif;
-        margin: 20px;
-        background-color: rgb(24, 53, 4);
-        color: #333;
+      :root {
+        --spotify-green: #1db954;
+        --spotify-green-hover: #1ed760;
+        /* UPDATED: Changed from pure black to Spotify's charcoal grey */
+        --spotify-bg-dark: #121212;
+        --spotify-bg-medium: #181818;
+        --spotify-bg-light: #282828;
+        --text-primary: #ffffff;
+        --text-secondary: #b3b3b3;
       }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Poppins", sans-serif;
+        /* UPDATED: Using the new background color */
+        background-color: var(--spotify-bg-dark);
+        color: var(--text-primary);
+        padding: 30px;
+      }
+
       h1 {
-        color: #1db954;
+        color: var(--text-primary);
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 2.5rem;
+      }
+
+      h1 span {
+        color: var(--spotify-green);
+        font-weight: 700;
       }
 
       .filter-section {
-        margin-bottom: 20px;
-        padding: 15px;
-        border: 1px solid #ddd;
-        background-color: #fff;
-        border-radius: 8px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 40px;
+        padding: 20px;
+        /* UPDATED: Using the new medium background for contrast */
+        background-color: var(--spotify-bg-medium);
+        border-radius: 12px;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
       }
+
       .filter-section label {
-        margin-right: 10px;
-        font-weight: bold;
+        font-weight: 600;
+        color: var(--text-secondary);
       }
+
       .filter-section select,
       .filter-section button {
-        padding: 8px 15px;
-        border-radius: 5px;
-        border: 1px solid #ccc;
-        font-size: 14px;
-      }
-      .filter-section button {
-        background-color: #1db954;
-        color: white;
+        padding: 10px 20px;
+        border-radius: 50px;
         border: none;
-        margin-left: 10px;
-        cursor: pointer;
+        font-size: 1rem;
+        font-family: "Poppins", sans-serif;
+        font-weight: 600;
       }
+
+      .filter-section select {
+        /* UPDATED: Using the lighter grey for the select box */
+        background-color: var(--spotify-bg-light);
+        color: var(--text-primary);
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        padding-right: 40px;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' width='18px' height='18px'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 15px center;
+      }
+
+      .filter-section button {
+        background-color: var(--spotify-green);
+        color: white;
+        cursor: pointer;
+        transition: background-color 0.2s ease, transform 0.2s ease;
+      }
+
       .filter-section button:hover {
-        background-color: #1ed760;
+        background-color: var(--spotify-green-hover);
+        transform: scale(1.05);
       }
 
       .song-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 20px;
-        justify-content: center;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 25px;
       }
+
       .song-item {
-        background-color: #fff;
-        border: 1px solid #eee;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        padding: 15px;
-        width: 280px;
+        /* UPDATED: Using the new medium background for cards */
+        background-color: var(--spotify-bg-medium);
+        border-radius: 12px;
+        padding: 20px;
         display: flex;
         flex-direction: column;
         align-items: center;
         text-align: center;
+        transition: background-color 0.3s ease, transform 0.3s ease;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: cardFadeIn 0.5s ease-out forwards;
+        animation-delay: calc(var(--animation-order, 1) * 0.05s);
       }
+
+      .song-item:hover {
+        /* UPDATED: Using the lighter grey for hover effect */
+        background-color: var(--spotify-bg-light);
+        transform: translateY(-5px);
+      }
+
       .song-item img {
-        width: 150px;
-        height: 150px;
+        width: 100%;
+        max-width: 200px;
+        height: auto;
+        aspect-ratio: 1 / 1;
         object-fit: cover;
-        border-radius: 5px;
-        margin-bottom: 10px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
       }
+
       .song-item h3 {
-        margin: 0 0 5px 0;
-        color: #1db954;
-        font-size: 1.1em;
+        color: var(--text-primary);
+        font-size: 1.2em;
+        width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
+
       .song-item p {
-        margin: 0 0 3px 0;
+        margin: 2px 0;
         font-size: 0.9em;
-        color: #555;
+        color: var(--text-secondary);
+        width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
+
       .song-item .genres {
+        font-style: italic;
         font-size: 0.8em;
-        color: #777;
-        margin-top: 5px;
+        margin-top: 8px;
       }
+
       .song-item a {
         display: inline-block;
-        margin-top: 10px;
-        padding: 8px 15px;
-        background-color: #1db954;
+        margin-top: 15px;
+        padding: 8px 20px;
+        background-color: var(--spotify-green);
         color: white;
         text-decoration: none;
         border-radius: 20px;
         font-size: 0.9em;
+        font-weight: 600;
+        transition: background-color 0.2s ease, transform 0.2s ease;
       }
+
       .song-item a:hover {
-        background-color: #1ed760;
+        background-color: var(--spotify-green-hover);
+        transform: scale(1.05);
+      }
+
+      .no-songs-message {
+        color: var(--text-secondary);
+        text-align: center;
+        font-size: 1.2rem;
+        padding: 50px;
       }
 
       #toast {
         visibility: hidden;
+        opacity: 0;
         min-width: 250px;
-        background-color: #1db954;
+        background-color: #333;
         color: white;
         text-align: center;
         border-radius: 8px;
-        padding: 12px;
+        padding: 16px;
         position: fixed;
         z-index: 999;
         left: 50%;
         bottom: 30px;
         transform: translateX(-50%);
-        font-size: 14px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        font-size: 1rem;
+        font-weight: 600;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        transition: visibility 0.3s, opacity 0.3s;
+      }
+
+      #toast.show {
+        visibility: visible;
+        opacity: 1;
+      }
+
+      @keyframes cardFadeIn {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
     </style>
   </head>
   <body>
-    <h1>Your Liked Songs ({{ songs|length }} total)</h1>
+    <h1>Your Liked Songs <span>({{ songs|length }} total)</span></h1>
 
     <div class="filter-section">
       <label for="genreFilter">Filter by Genre:</label>
@@ -132,15 +242,15 @@
       <div
         class="song-item"
         data-genres="{{ song.broad_genres|join:', '|lower }}"
+        style="--animation-order: {{ loop.index }};"
       >
         {% if song.image_url %}
         <img src="{{ song.image_url }}" alt="{{ song.album }} Album Art" />
         {% endif %}
         <h3>{{ song.title }}</h3>
         <p>by {{ song.artist }}</p>
-        <p>Album: {{ song.album }}</p>
         {% if song.broad_genres %}
-        <p class="genres">Genres: {{ song.broad_genres|join:', ' }}</p>
+        <p class="genres">{{ song.broad_genres|join:', ' }}</p>
         {% else %}
         <p class="genres">Genres: N/A</p>
         {% endif %} {% if song.preview_url %}
@@ -148,7 +258,7 @@
         {% endif %}
       </div>
       {% empty %}
-      <p>
+      <p class="no-songs-message">
         No liked songs found. Make sure you have authorized EchoSorter to read
         your library.
       </p>
@@ -161,9 +271,9 @@
       document.addEventListener("DOMContentLoaded", function () {
         const genreFilter = document.getElementById("genreFilter");
         const songItems = document.querySelectorAll(".song-item");
+
         const allBroadGenres = new Set();
 
-        // Extract genres from song data
         songItems.forEach((item) => {
           const genresAttr = item.dataset.genres;
           if (genresAttr) {
@@ -172,8 +282,6 @@
             });
           }
         });
-
-        // Populate genre dropdown
         const sortedUniqueGenres = Array.from(allBroadGenres).sort();
         sortedUniqueGenres.forEach((genre) => {
           const option = document.createElement("option");
@@ -182,19 +290,24 @@
           genreFilter.appendChild(option);
         });
 
-        // Filtering logic
         genreFilter.addEventListener("change", function () {
           const selectedGenre = this.value;
+          let visibleItemIndex = 0;
           songItems.forEach((item) => {
             const songGenres = item.dataset.genres.split(",");
-            item.style.display =
-              selectedGenre === "all" || songGenres.includes(selectedGenre)
-                ? "flex"
-                : "none";
+            const isVisible =
+              selectedGenre === "all" || songGenres.includes(selectedGenre);
+
+            if (isVisible) {
+              item.style.display = "flex";
+              item.style.setProperty("--animation-order", visibleItemIndex + 1);
+              visibleItemIndex++;
+            } else {
+              item.style.display = "none";
+            }
           });
         });
 
-        // Playlist creation
         document
           .getElementById("createPlaylistBtn")
           .addEventListener("click", function () {
@@ -225,7 +338,6 @@
                 if (data.playlist_url) {
                   setTimeout(() => {
                     window.open(data.playlist_url, "_blank");
-                    window.location.href = "/spotify/liked_songs/";
                   }, 1500);
                 }
               })
@@ -237,9 +349,7 @@
 
         function showToast(message, type = "info") {
           const toast = document.getElementById("toast");
-
           toast.textContent = message;
-
           toast.style.backgroundColor =
             type === "success"
               ? "#1db954"
@@ -249,8 +359,8 @@
               ? "#f0ad4e"
               : "#333";
 
-          toast.style.visibility = "visible";
-          setTimeout(() => (toast.style.visibility = "hidden"), 3000);
+          toast.classList.add("show");
+          setTimeout(() => toast.classList.remove("show"), 3000);
         }
 
         function getCSRFToken() {
