@@ -23,6 +23,13 @@ Echo Sorter is a powerful yet simple Django web application designed to bring or
 * **API**: [Spotipy](https://spotipy.readthedocs.io/en/2.22.1/) for the Spotify Web API
 
 ***
+## 💡 How It Works
+
+The application follows a simple but effective workflow:
+1.  **Authentication**: It uses the **Spotipy** library to handle the Spotify OAuth 2.0 flow, allowing users to log in securely.
+2.  **Data Fetching**: After authentication, it calls the Spotify API to retrieve the user's entire "Liked Songs" library, including detailed metadata for each track (artist, album, and associated genres).
+3.  **Genre Mapping**: A custom logic layer processes the genre data for each track. It maps specific, niche genres to broader, more useful categories defined within the application.
+4.  **Playlist Creation**: When a user requests a playlist, the app uses another API call to create a new public playlist in the user's Spotify account and adds all the relevant tracks to it.
 
 ## 🚀 Getting Started
 
@@ -111,10 +118,3 @@ This project is actively being developed. Here are some of the planned features 
 
 ***
 
-## 💡 How It Works
-
-The application follows a simple but effective workflow:
-1.  **Authentication**: It uses the **Spotipy** library to handle the Spotify OAuth 2.0 flow, allowing users to log in securely.
-2.  **Data Fetching**: After authentication, it calls the Spotify API to retrieve the user's entire "Liked Songs" library, including detailed metadata for each track (artist, album, and associated genres).
-3.  **Genre Mapping**: A custom logic layer processes the genre data for each track. It maps specific, niche genres to broader, more useful categories defined within the application.
-4.  **Playlist Creation**: When a user requests a playlist, the app uses another API call to create a new public playlist in the user's Spotify account and adds all the relevant tracks to it.
