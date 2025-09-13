@@ -389,20 +389,17 @@ def map_specific_genres_to_broad(specific_genres):
     using the BROAD_GENRE_MAPPING.
     """
     broad_genres = set()
-    # Normalize the specific genres to lowercase for robust matching
+    # converting specific genres to lowercase for case-insensitive matching
     specific_genres_lower = [g.lower() for g in specific_genres]
 
     # Iterate through the BROAD_GENRE_MAPPING
     for broad_category, specific_genre_list in BROAD_GENRE_MAPPING.items():
-        # Check if any of the song's specific genres are in the current broad_category's list
-        # Normalize the mapping genres to lowercase as well
+        # check for existing specific genres in the broad category list
         normalized_specific_genre_list = [g.lower() for g in specific_genre_list]
 
         for sg in specific_genres_lower:
             if sg in normalized_specific_genre_list:
                 broad_genres.add(broad_category)
-                # Optimization: if a specific genre maps to this broad category,
-                # no need to check other specific genres for this broad category
-                break  # Move to the next broad_category
-
+                # move on if it already exists
+                break
     return sorted(list(broad_genres))

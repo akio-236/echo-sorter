@@ -15,18 +15,16 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 STATIC_URL = "/static/"
 
-# This is where Django will look for static files during development
+# static file directory for django
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
 
-# This is where 'python manage.py collectstatic' will gather all static files
-# for deployment. It should be an empty directory initially.
+# gathering all static files for deployment
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 load_dotenv(os.path.join(BASE_DIR, ".env"))
@@ -46,17 +44,15 @@ if not all([SPOTIPY_CLIENT_ID, SPOTIPY_CLIENT_SECRET, SPOTIPY_REDIRECT_URI]):
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
+
 SECRET_KEY = "django-insecure-_+a94n^x(4_7eec7o5aa=o=t(9@2dprgiw19b+yqex(vb)2-0f"
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = []
 
 
 # Application definition
-
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",

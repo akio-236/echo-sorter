@@ -6,19 +6,15 @@ from django.http import JsonResponse
 from django.conf import settings
 from spotipy.oauth2 import SpotifyOAuth
 import spotipy
-from django.db import transaction  # Crucial for atomic database operations
-import logging  # For better logging
+from django.db import transaction
+import logging
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-
-# Configure a logger for this module
-logger = logging.getLogger(__name__)
-
-# Import your models
 from .models import Song, Artist, Album, SpecificGenre, BroadGenre
-
-# Import your genre mapping utilities
 from .genre_utils import BROAD_GENRE_MAPPING, map_specific_genres_to_broad
+
+
+logger = logging.getLogger(__name__)
 
 
 def fetch_liked_songs_if_needed(user_id, sp):
@@ -27,13 +23,13 @@ def fetch_liked_songs_if_needed(user_id, sp):
         logger.info(
             f"[CACHE HIT] Songs already exist for user {user_id}. Skipping fetch."
         )
-        return False  # No fetch needed
+        return False
 
     logger.info(f"[CACHE MISS] No songs for user {user_id}. Fetching from Spotify...")
     return True
 
 
-# --- Helper function for Spotify Authentication ---
+# Spotify Authentication
 def get_spotify_auth():
     """
     Initializes and returns a SpotifyOAuth object.
@@ -51,7 +47,7 @@ def get_spotify_auth():
     )
 
 
-# --- View for the Home Page ---
+# Home page view
 def home(request):
     """
     Renders the welcome page with the 'Connect with Spotify' button.
@@ -59,7 +55,7 @@ def home(request):
     return render(request, "home.html")
 
 
-# --- View to initiate Spotify Authorization ---
+# Spotify authentication initiation
 def auth_spotify(request):
     """
     Redirects the user to Spotify's authorization page.
@@ -70,7 +66,7 @@ def auth_spotify(request):
     return redirect(auth_url)
 
 
-# --- Spotify Callback View (Handles the redirect from Spotify) ---
+# Spotify Callback view for handling redirect after auth
 def spotify_callback(request):
     """
     Handles the callback from Spotify after user authorization.
@@ -97,24 +93,24 @@ def spotify_callback(request):
         user_info = sp.current_user()
         user_id = user_info["id"]
 
-        # Check if we need to fetch or skip
+        # Check the need for fetch or skip
         should_fetch = fetch_liked_songs_if_needed(user_id, sp)
         if not should_fetch:
             return redirect("spotify_integration:liked_songs")
 
-        # --- Start Data Sync to Database ---
+        # start data sync to DB
         logger.info("Starting data sync to database...")
         all_liked_tracks_spotify_ids = (
             set()
-        )  # To track Spotify IDs of currently liked songs
-        current_user_liked_tracks = []  # Store full track objects from Spotify
+        )  # Track Spotify IDs of currently liked songs
+        current_user_liked_tracks = []
 
-        # Fetch all liked songs from Spotify API with pagination
+        # Fetch all liked songs from Spotify API
         results = sp.current_user_saved_tracks(limit=50)
         while results:
             for item in results["items"]:
                 track = item["track"]
-                if track:  # Ensure track data exists
+                if track:
                     current_user_liked_tracks.append(track)
                     all_liked_tracks_spotify_ids.add(track["id"])
             if results["next"]:
@@ -128,10 +124,8 @@ def spotify_callback(request):
 
         # Process and Save to DB within an atomic transaction
         with transaction.atomic():
-            # Step 1: Collect all unique artist IDs from the fetched liked songs
             all_api_artist_ids = set()
             for track_data in current_user_liked_tracks:
-                # Only add artists if track_data is valid enough to attempt processing later
                 song_id = track_data.get("id")
                 song_title = track_data.get("name")
                 album_data = track_data.get("album")
@@ -161,16 +155,16 @@ def spotify_callback(request):
                 f"Collected {len(all_api_artist_ids)} unique artist IDs for genre fetching."
             )
 
-            # Step 2: Fetch detailed information (including genres) for all unique artists in batches
-            artist_details_from_api = {}  # Dictionary to store artist_id -> artist_detail
+            # Fetch detailed information for all unique artists in batches
+            artist_details_from_api = {}
             artist_ids_list = list(all_api_artist_ids)
-            batch_size = 50  # Spotify API allows up to 50 artist IDs per request
+            batch_size = 50
             for i in range(0, len(artist_ids_list), batch_size):
                 batch = artist_ids_list[i : i + batch_size]
                 try:
                     artists_batch_details = sp.artists(batch)
                     for artist_detail in artists_batch_details["artists"]:
-                        if artist_detail:  # Ensure artist_detail is not None (can happen if artist ID is invalid)
+                        if artist_detail:  # Ensure artist_detail is not None
                             artist_details_from_api[artist_detail["id"]] = artist_detail
                 except spotipy.exceptions.SpotifyException as e:
                     logger.warning(
@@ -185,17 +179,15 @@ def spotify_callback(request):
                 f"Fetched details for {len(artist_details_from_api)} artists from Spotify API for genre parsing."
             )
 
-            # Step 3: Save/Update Artists and their Specific Genres, then link to Broad Genres
-            saved_artists = {}  # Cache Artist objects to avoid repeated DB queries during song processing
+            # Save/Update Artists and their Specific Genres, then link to Broad Genres
+            saved_artists = {}
             logger.info(
                 "Processing artists and genres (logging only artists with no genres)..."
             )
             for artist_id, artist_data in artist_details_from_api.items():
                 specific_genres_list = artist_data.get("genres", [])
 
-                if (
-                    not specific_genres_list
-                ):  # Conditional logging: ONLY PRINT DEBUG FOR ARTISTS WITH NO GENRES
+                if not specific_genres_list:
                     logger.debug(
                         f"  Processing Artist (No Genres Found): {artist_data['name']} (ID: {artist_id})"
                     )
@@ -211,7 +203,6 @@ def spotify_callback(request):
                     artist_obj.save(update_fields=["name"])
                 saved_artists[artist_id] = artist_obj
 
-                # Clear existing specific genres for artists to resync their genres from Spotify
                 artist_obj.genres.clear()
 
                 for specific_genre_name in specific_genres_list:
@@ -221,7 +212,6 @@ def spotify_callback(request):
 
                     artist_obj.genres.add(specific_genre_obj)
 
-                    # Link SpecificGenre to BroadGenre using your defined mapping
                     broad_genres_for_specific = map_specific_genres_to_broad(
                         [specific_genre_name]
                     )
@@ -231,7 +221,7 @@ def spotify_callback(request):
                         )
                         specific_genre_obj.broad_genres.add(broad_genre_obj)
 
-            # Step 4: Save/Update Albums and Songs, and link to Artists
+            # Save/Update Albums and Songs, and link to Artists
             logger.info(
                 "Processing songs and albums (logging only problematic ones that are skipped)..."
             )
@@ -244,23 +234,22 @@ def spotify_callback(request):
                 album_data = track_data.get("album")
                 artists_from_track = track_data.get("artists", [])
 
-                # --- CRITICAL MISSING DATA CHECKS - SKIPPING SONGS ---
                 if not song_title:
                     logger.warning(f"Skipping song '{song_id}' due to missing title.")
-                    continue  # Skip to the next song
+                    continue
 
                 if not album_data:
                     logger.warning(
                         f"Skipping song '{song_title}' (ID: {song_id}) due to missing album data from Spotify."
                     )
-                    continue  # Skip to the next song
+                    continue
 
                 album_name = album_data.get("name")
                 if not album_name:
                     logger.warning(
                         f"Skipping song '{song_title}' (ID: {song_id}) due to missing album name."
                     )
-                    continue  # Skip to the next song
+                    continue
 
                 album_image_url = (
                     album_data["images"][0]["url"] if album_data.get("images") else None
@@ -269,14 +258,13 @@ def spotify_callback(request):
                     logger.warning(
                         f"Skipping song '{song_title}' (ID: {song_id}) due to missing album image URL."
                     )
-                    continue  # Skip to the next song
+                    continue
 
                 if not artists_from_track:
                     logger.warning(
                         f"Skipping song '{song_title}' (ID: {song_id}) due to missing artist data."
                     )
-                    continue  # Skip to the next song
-                # --- END CRITICAL MISSING DATA CHECKS ---
+                    continue
 
                 album_obj, created_album = Album.objects.get_or_create(
                     spotify_id=album_data["id"],
@@ -299,7 +287,7 @@ def spotify_callback(request):
                         "title": track_data["name"],
                         "album": album_obj,
                         "preview_url": track_data.get("preview_url"),
-                        "user_id": user_id,  # Use .get() for safety
+                        "user_id": user_id,
                     },
                 )
                 if not created_song and song_obj.user_id != user_id:
@@ -318,17 +306,12 @@ def spotify_callback(request):
                     if updated_song_fields:
                         song_obj.save(update_fields=updated_song_fields)
 
-                # Link artists to the song's ManyToMany field
-                song_obj.artists.clear()  # Clear existing artists to resync relationships
-                for artist_data in (
-                    artists_from_track
-                ):  # Use artists_from_track which was checked for emptiness
+                song_obj.artists.clear()
+                for artist_data in artists_from_track:
                     artist_id = artist_data["id"]
                     if artist_id in saved_artists:
                         song_obj.artists.add(saved_artists[artist_id])
                     else:
-                        # Fallback: if an artist wasn't in the initial batch fetch (e.g., API error for that artist),
-                        # create them here minimally to maintain the song-artist link.
                         logger.warning(
                             f"  Artist {artist_data['name']} (ID: {artist_id}) not found in batch cache for song {track_data['name']}. Creating minimally."
                         )
@@ -337,12 +320,9 @@ def spotify_callback(request):
                         )
                         song_obj.artists.add(fallback_artist_obj)
 
-                processed_songs_spotify_ids.add(
-                    song_id
-                )  # Add to the set of actually processed songs
+                processed_songs_spotify_ids.add(song_id)
 
             # Remove songs from DB that are no longer liked by the user OR were skipped during this run
-            # This ensures only successfully processed songs remain in the DB
             if request.GET.get("sync") == "true":
                 db_current_songs = set(
                     Song.objects.values_list("spotify_id", flat=True)
@@ -359,7 +339,6 @@ def spotify_callback(request):
                     )
 
         logger.info("Data sync complete. Redirecting to liked songs page.")
-        # --- End Data Sync to Database ---
 
         return redirect("spotify_integration:liked_songs")
 
@@ -369,7 +348,7 @@ def spotify_callback(request):
             logger.warning(
                 "Token expired or invalid. Clearing cache to force re-authentication."
             )
-            # Ensure local_tokes.json is in your project root or accessible
+            # Ensure local_tokes.json is in the project root
             if os.path.exists("local_tokes.json"):
                 os.remove("local_tokes.json")
             return redirect(
@@ -385,10 +364,7 @@ def spotify_callback(request):
         )
 
 
-# The 'liked_songs' view code would follow here (it's unchanged for this request)
-
-
-# --- Liked Songs Display View ---
+# Liked Songs view
 def liked_songs(request):
     """
     Displays the user's liked songs from the local database.
@@ -403,22 +379,15 @@ def liked_songs(request):
     songs_data = []
 
     sp = spotipy.Spotify(auth=token_info["access_token"])
-
-    # Optimize query: select_related for ForeignKey (album), prefetch_related for ManyToMany (artists)
-    # This will fetch related data in a minimal number of queries.
     user_info = sp.current_user()
     user_id = user_info["id"]
 
     songs_from_db = (
-        Song.objects.filter(
-            user_id=user_id
-        )  # ✅ Filter songs for the current user only
+        Song.objects.filter(user_id=user_id)
         .select_related("album")
         .prefetch_related("artists__genres")
         .order_by("title")
     )
-
-    # ^ Added __genres to prefetch related genres for artists as well, making broad_genres property more efficient
 
     logger.debug(
         f"DEBUG_LIKED_SONGS: Preparing to process {len(songs_from_db)} songs for template (logging only problematic ones)."
@@ -429,15 +398,13 @@ def liked_songs(request):
         for artist in song_obj.artists.all():
             artists_names.append(artist.name)
 
-        # The broad_genres property will compute genres based on artists' specific genres
         broad_genres_for_song = song_obj.broad_genres
 
-        # Condition to trigger debug prints for songs with issues
         has_issue = False
         if not song_obj.album or not song_obj.album.image_url:
-            has_issue = True  # Missing album or image
-        if not broad_genres_for_song:  # If broad_genres_for_song is an empty list
-            has_issue = True  # No broad genres found for the song
+            has_issue = True
+        if not broad_genres_for_song:
+            has_issue = True
 
         if has_issue:
             logger.debug(
@@ -453,7 +420,7 @@ def liked_songs(request):
             logger.debug(
                 f"  Broad Genres computed by property: {broad_genres_for_song}"
             )
-            logger.debug("-" * 40)  # Separator for readability
+            logger.debug("-" * 40)
 
         songs_data.append(
             {
@@ -467,7 +434,7 @@ def liked_songs(request):
                 "image_url": song_obj.album.image_url
                 if song_obj.album and song_obj.album.image_url
                 else "/static/default_album_art.png",
-                "broad_genres": broad_genres_for_song,  # This is a list of strings
+                "broad_genres": broad_genres_for_song,
             }
         )
     logger.debug(
@@ -487,7 +454,7 @@ def liked_songs(request):
         "spotify_integration/liked_songs.html",
         {
             "songs": songs_data,
-            "broad_genres_for_filter": sorted_broad_genres,  # Pass sorted genres for the filter
+            "broad_genres_for_filter": sorted_broad_genres,
         },
     )
 
@@ -513,7 +480,6 @@ def create_playlist(request):
     playlist = sp.user_playlist_create(user=user_id, name=playlist_name, public=False)
     playlist_id = playlist["id"]
 
-    # Case-insensitive match
     genre_songs = (
         Song.objects.prefetch_related("artists__genres__broad_genres")
         .filter(artists__genres__broad_genres__name__iexact=genre)
