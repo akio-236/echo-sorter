@@ -1,10 +1,9 @@
 import os
 from pathlib import Path
 
-# Base directory of the project
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from .env file only if it exists (for local development)
+
 if os.path.exists(os.path.join(BASE_DIR, ".env")):
     from dotenv import load_dotenv
 
