@@ -32,9 +32,9 @@ def fetch_liked_songs_if_needed(user_id, sp):
 
 def get_spotify_auth():
     return SpotifyOAuth(
-        client_id=settings.SPOTIFY_CLIENT_ID,
-        client_secret=settings.SPOTIFY_CLIENT_SECRET,
-        redirect_uri=settings.SPOTIFY_REDIRECT_URI,
+        client_id=settings.SPOTIPY_CLIENT_ID,
+        client_secret=settings.SPOTIPY_CLIENT_SECRET,
+        redirect_uri=settings.SPOTIPY_REDIRECT_URI,
         scope="user-library-read playlist-modify-private playlist-modify-public",
     )
 
