@@ -1,16 +1,18 @@
+from datetime import timedelta, timezone
 import os
 import json
 from pyexpat.errors import messages
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.conf import settings
+from spotify_integration.spotify_utils import get_user_spotify_client
 from spotipy.oauth2 import SpotifyOAuth
 import spotipy
 from django.db import transaction
 import logging
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from .models import Song, Artist, Album, SpecificGenre, BroadGenre
+from .models import Song, Artist, Album, SpecificGenre, BroadGenre, SpotifyToken
 from .genre_utils import BROAD_GENRE_MAPPING, map_specific_genres_to_broad
 
 
@@ -70,7 +72,8 @@ def auth_spotify(request):
 def spotify_callback(request):
     """
     Handles the callback from Spotify after user authorization.
-    Exchanges code for token, fetches liked songs, and saves to DB.
+    Exchanges code for token, stores tokens per user in DB,
+    fetches liked songs, and saves them to the local DB.
     Includes logic to skip songs with critical missing metadata.
     """
     sp_oauth = get_spotify_auth()
@@ -84,28 +87,43 @@ def spotify_callback(request):
         )
 
     try:
-        # Exchange authorization code for an access token
+        # --- 1. Exchange authorization code for access + refresh tokens ---
         logger.info("Attempting to get Spotify access token...")
         token_info = sp_oauth.get_access_token(code, check_cache=False)
-        logger.info("Token obtained and cached successfully.")
+        logger.info("Token obtained successfully.")
 
-        sp = spotipy.Spotify(auth_manager=sp_oauth)
+        access_token = token_info["access_token"]
+        refresh_token = token_info["refresh_token"]
+        expires_in = token_info["expires_in"]  # usually 3600 sec
+        expires_at = timezone.now() + timedelta(seconds=expires_in)
+
+        sp = spotipy.Spotify(auth=access_token)
         user_info = sp.current_user()
         user_id = user_info["id"]
 
-        # Check the need for fetch or skip
+        request.session["spotify_user_id"] = user_id
+
+        # --- 2. Save tokens in DB ---
+        SpotifyToken.objects.update_or_create(
+            user_id=user_id,
+            defaults={
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "expires_at": expires_at,
+            },
+        )
+
+        # --- 3. Check whether to fetch liked songs ---
         should_fetch = fetch_liked_songs_if_needed(user_id, sp)
         if not should_fetch:
             return redirect("spotify_integration:liked_songs")
 
-        # start data sync to DB
-        logger.info("Starting data sync to database...")
-        all_liked_tracks_spotify_ids = (
-            set()
-        )  # Track Spotify IDs of currently liked songs
+        logger.info(f"[SYNC] Starting data sync for user {user_id}...")
+
+        # --- 4. Fetch all liked songs ---
+        all_liked_tracks_spotify_ids = set()
         current_user_liked_tracks = []
 
-        # Fetch all liked songs from Spotify API
         results = sp.current_user_saved_tracks(limit=50)
         while results:
             for item in results["items"]:
@@ -113,15 +131,11 @@ def spotify_callback(request):
                 if track:
                     current_user_liked_tracks.append(track)
                     all_liked_tracks_spotify_ids.add(track["id"])
-            if results["next"]:
-                results = sp.next(results)
-            else:
-                results = None
+            results = sp.next(results) if results["next"] else None
 
         logger.info(
-            f"Fetched {len(current_user_liked_tracks)} liked songs from Spotify API."
+            f"[SYNC] Fetched {len(current_user_liked_tracks)} liked songs from Spotify API."
         )
-
         # Process and Save to DB within an atomic transaction
         with transaction.atomic():
             all_api_artist_ids = set()
@@ -338,23 +352,17 @@ def spotify_callback(request):
                         "Skipping deletion of old songs because sync flag was not set."
                     )
 
-        logger.info("Data sync complete. Redirecting to liked songs page.")
-
+        logger.info("[SYNC COMPLETE] Redirecting to liked songs page.")
         return redirect("spotify_integration:liked_songs")
 
     except spotipy.exceptions.SpotifyException as e:
         logger.error(f"Spotify API error during callback: {e}")
         if e.http_status == 401:
-            logger.warning(
-                "Token expired or invalid. Clearing cache to force re-authentication."
-            )
-            # Ensure local_tokes.json is in the project root
-            if os.path.exists("local_tokes.json"):
-                os.remove("local_tokes.json")
-            return redirect(
-                "spotify_integration:auth_spotify"
-            )  # Redirect to re-authenticate
+            logger.warning("Token expired or invalid. Removing stored token.")
+            SpotifyToken.objects.filter(user_id=user_id).delete()
+            return redirect("spotify_integration:auth_spotify")
         return JsonResponse({"error": f"Spotify API error: {e}"}, status=e.http_status)
+
     except Exception as e:
         logger.critical(
             f"An unexpected error occurred in spotify_callback: {e}", exc_info=True
@@ -368,59 +376,50 @@ def spotify_callback(request):
 def liked_songs(request):
     """
     Displays the user's liked songs from the local database.
+    Uses DB-backed token management (no local cache).
     """
-    sp_oauth = get_spotify_auth()
-    token_info = sp_oauth.get_cached_token()
-
-    if not token_info:
-        logger.info("No cached Spotify token found, redirecting for authentication.")
+    # Resolve Spotify user ID from session
+    spotify_user_id = request.session.get("spotify_user_id")
+    if not spotify_user_id:
+        logger.info("[LIKED_SONGS] No Spotify user in session, redirecting for auth.")
         return redirect("spotify_integration:auth_spotify")
 
+    # Get Spotify client for this user
+    sp = get_user_spotify_client(spotify_user_id)
+    if not sp:
+        logger.info("[LIKED_SONGS] No valid Spotify token, redirecting for auth.")
+        return redirect("spotify_integration:auth_spotify")
+
+    # Pull songs for this user from local DB
     songs_data = []
-
-    sp = spotipy.Spotify(auth=token_info["access_token"])
-    user_info = sp.current_user()
-    user_id = user_info["id"]
-
     songs_from_db = (
-        Song.objects.filter(user_id=user_id)
+        Song.objects.filter(user_id=spotify_user_id)
         .select_related("album")
         .prefetch_related("artists__genres")
         .order_by("title")
     )
 
     logger.debug(
-        f"DEBUG_LIKED_SONGS: Preparing to process {len(songs_from_db)} songs for template (logging only problematic ones)."
+        f"[LIKED_SONGS] Preparing to process {len(songs_from_db)} songs for template."
     )
 
     for song_obj in songs_from_db:
-        artists_names = []
-        for artist in song_obj.artists.all():
-            artists_names.append(artist.name)
-
+        artists_names = [artist.name for artist in song_obj.artists.all()]
         broad_genres_for_song = song_obj.broad_genres
 
-        has_issue = False
-        if not song_obj.album or not song_obj.album.image_url:
-            has_issue = True
-        if not broad_genres_for_song:
-            has_issue = True
-
-        if has_issue:
+        # Debug logging for problematic records
+        if (
+            not song_obj.album
+            or not song_obj.album.image_url
+            or not broad_genres_for_song
+        ):
             logger.debug(
-                f"DEBUG_LIKED_SONGS: Processing Song with Issue: '{song_obj.title}' (ID: {song_obj.spotify_id})"
+                f"[LIKED_SONGS:ISSUE] Song '{song_obj.title}' (ID: {song_obj.spotify_id})\n"
+                f"  Album: {song_obj.album.name if song_obj.album else 'N/A'}\n"
+                f"  Image URL: {song_obj.album.image_url if song_obj.album else 'N/A'}\n"
+                f"  Artists: {', '.join(artists_names)}\n"
+                f"  Broad Genres: {broad_genres_for_song}\n" + "-" * 40
             )
-            logger.debug(
-                f"  Album Name: {song_obj.album.name if song_obj.album else 'N/A'}"
-            )
-            logger.debug(
-                f"  Image URL: {song_obj.album.image_url if song_obj.album else 'N/A'}"
-            )
-            logger.debug(f"  Artists: {', '.join(artists_names)}")
-            logger.debug(
-                f"  Broad Genres computed by property: {broad_genres_for_song}"
-            )
-            logger.debug("-" * 40)
 
         songs_data.append(
             {
@@ -437,18 +436,18 @@ def liked_songs(request):
                 "broad_genres": broad_genres_for_song,
             }
         )
+
     logger.debug(
-        f"DEBUG_LIKED_SONGS: Successfully prepared {len(songs_data)} songs for template render."
+        f"[LIKED_SONGS] Successfully prepared {len(songs_data)} songs for template render."
     )
 
-    # Get unique broad genres from all songs to populate the filter dropdown
-    all_available_broad_genres = set()
-    for song_item in songs_data:
-        for genre in song_item["broad_genres"]:
-            all_available_broad_genres.add(genre)
-
+    # Build unique genre filter list
+    all_available_broad_genres = {
+        genre for song_item in songs_data for genre in song_item["broad_genres"]
+    }
     sorted_broad_genres = sorted(list(all_available_broad_genres))
 
+    # Render template
     return render(
         request,
         "spotify_integration/liked_songs.html",
@@ -462,35 +461,53 @@ def liked_songs(request):
 @csrf_exempt
 @require_POST
 def create_playlist(request):
+    """
+    Creates a new Spotify playlist for the given genre and populates it with
+    all songs mapped to that genre from the local DB.
+    Uses DB-backed token management (multi-user ready).
+    """
     genre = request.POST.get("genre", "").strip().lower()
     if not genre:
         return JsonResponse({"error": "Genre not provided"}, status=400)
 
-    sp_oauth = get_spotify_auth()
-    token_info = sp_oauth.get_cached_token()
-    if not token_info:
+    # --- 1. Resolve Spotify user ---
+    spotify_user_id = request.session.get("spotify_user_id")
+    if not spotify_user_id:
+        logger.info(
+            "[CREATE_PLAYLIST] No Spotify user in session, redirecting for auth."
+        )
         return redirect("spotify_integration:auth_spotify")
 
-    sp = spotipy.Spotify(auth=token_info["access_token"])
+    # --- 2. Get Spotify client for this user ---
+    sp = get_user_spotify_client(spotify_user_id)
+    if not sp:
+        logger.info("[CREATE_PLAYLIST] No valid Spotify token, redirecting for auth.")
+        return redirect("spotify_integration:auth_spotify")
 
-    user = sp.current_user()
-    user_id = user["id"]
-
-    playlist_name = f"{genre} Playlist "
-    playlist = sp.user_playlist_create(user=user_id, name=playlist_name, public=False)
+    # --- 3. Create playlist in Spotify ---
+    playlist_name = f"{genre.title()} Playlist"
+    playlist = sp.user_playlist_create(
+        user=spotify_user_id, name=playlist_name, public=False
+    )
     playlist_id = playlist["id"]
 
+    # --- 4. Collect songs of this genre from DB (for this user only) ---
     genre_songs = (
         Song.objects.prefetch_related("artists__genres__broad_genres")
-        .filter(artists__genres__broad_genres__name__iexact=genre)
+        .filter(
+            artists__genres__broad_genres__name__iexact=genre, user_id=spotify_user_id
+        )
         .distinct()
     )
 
-    print(f"[DEBUG] Requested genre: '{genre}'")
-    print(f"[DEBUG] Found {genre_songs.count()} songs with genre '{genre}'")
+    logger.debug(f"[CREATE_PLAYLIST] Requested genre: '{genre}'")
+    logger.debug(
+        f"[CREATE_PLAYLIST] Found {genre_songs.count()} songs with genre '{genre}'"
+    )
 
     track_uris = [f"spotify:track:{song.spotify_id}" for song in genre_songs]
 
+    # --- 5. Add songs to playlist in batches (Spotify limit = 100) ---
     for i in range(0, len(track_uris), 100):
         sp.playlist_add_items(playlist_id, track_uris[i : i + 100])
 
