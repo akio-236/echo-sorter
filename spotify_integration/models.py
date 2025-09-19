@@ -62,3 +62,10 @@ class Song(models.Model):
             for specific_genre in artist.genres.all():
                 all_specific_genres.add(specific_genre.name)
         return map_specific_genres_to_broad(list(all_specific_genres))
+
+
+class SpotifyToken(models.Model):
+    user_id = models.CharField(max_length=255, unique=True)
+    access_token = models.TextField()
+    refresh_token = models.TextField()
+    expires_at = models.DateTimeField()
