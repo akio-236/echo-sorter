@@ -117,7 +117,7 @@ def spotify_callback(request):
 
         request.session["spotify_user_id"] = user_id
 
-        # --- 2. Save tokens in DB ---
+        expires_at = timezone.now() + timedelta(seconds=expires_in)
         SpotifyToken.objects.update_or_create(
             user_id=user_id,
             defaults={
