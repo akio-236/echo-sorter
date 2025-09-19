@@ -5,7 +5,7 @@ from pyexpat.errors import messages
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.conf import settings
-from spotify_integration.spotify_utils import get_user_spotify_client
+from spotify_integration.spotify_utils import get_spotify_auth, get_user_spotify_client
 from spotipy.oauth2 import SpotifyOAuth
 import spotipy
 from django.db import transaction
@@ -29,24 +29,6 @@ def fetch_liked_songs_if_needed(user_id, sp):
 
     logger.info(f"[CACHE MISS] No songs for user {user_id}. Fetching from Spotify...")
     return True
-
-
-# Spotify Authentication
-def get_spotify_auth():
-    """
-    Initializes and returns a SpotifyOAuth object.
-    Uses 'local_tokes.json' for token caching.
-    """
-    redirect_uri = settings.SPOTIPY_REDIRECT_URI
-    logger.debug(f"SPOTIPY_REDIRECT_URI for auth: {redirect_uri}")
-
-    return SpotifyOAuth(
-        client_id=settings.SPOTIPY_CLIENT_ID,
-        client_secret=settings.SPOTIPY_CLIENT_SECRET,
-        redirect_uri=redirect_uri,
-        scope="user-library-read user-read-private user-read-email playlist-modify-private playlist-modify-public",
-        cache_path=None,
-    )
 
 
 # Home page view

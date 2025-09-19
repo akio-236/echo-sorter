@@ -1,8 +1,19 @@
+from echosorter_project import settings
 import spotipy
 from django.utils import timezone
+from spotipy.oauth2 import SpotifyOAuth
 from datetime import timedelta
 from .models import SpotifyToken
 from .views import get_spotify_auth
+
+
+def get_spotify_auth():
+    return SpotifyOAuth(
+        client_id=settings.SPOTIFY_CLIENT_ID,
+        client_secret=settings.SPOTIFY_CLIENT_SECRET,
+        redirect_uri=settings.SPOTIFY_REDIRECT_URI,
+        scope="user-library-read playlist-modify-private playlist-modify-public",
+    )
 
 
 def get_user_spotify_client(user_id):
