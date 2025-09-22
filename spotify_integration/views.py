@@ -108,7 +108,7 @@ def spotify_callback(request):
 
         access_token = token_info["access_token"]
         refresh_token = token_info["refresh_token"]
-        expires_in = token_info["expires_in"]  # usually 3600 sec
+        expires_in = int(token_info["expires_in"])
         expires_at = timezone.now() + timedelta(seconds=expires_in)
 
         sp = spotipy.Spotify(auth=access_token)
