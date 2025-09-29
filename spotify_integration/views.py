@@ -14,6 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from .models import Song, Artist, Album, SpecificGenre, BroadGenre, SpotifyToken
 from .genre_utils import BROAD_GENRE_MAPPING, map_specific_genres_to_broad
+import traceback
 
 
 logger = logging.getLogger(__name__)
@@ -96,29 +97,36 @@ def spotify_callback(request):
 
     if not code:
         error_message = request.GET.get("error", "No authorization code received.")
-        logger.error(f"Spotify callback failed: {error_message}")
+        print("ERROR: Spotify callback failed:", error_message)
         return JsonResponse(
             {"error": f"Spotify authorization failed: {error_message}"}, status=400
         )
 
     try:
         # --- 1. Exchange authorization code for access + refresh tokens ---
-        logger.info("Attempting to get Spotify access token...")
+        print("DEBUG: Attempting to get Spotify access token...")
         token_info = sp_oauth.get_access_token(code, check_cache=False)
-        logger.info("Token obtained successfully.")
+        print("DEBUG: Token obtained successfully:", token_info)
 
         access_token = token_info["access_token"]
         refresh_token = token_info["refresh_token"]
         expires_in = int(token_info["expires_in"])
         expires_at = timezone.now() + timedelta(seconds=expires_in)
+        print("DEBUG: Token data parsed successfully.")
 
+        # --- 2. Fetch current user info ---
+        print("DEBUG: Creating Spotify client...")
         sp = spotipy.Spotify(auth=access_token)
-        user_info = sp.current_user()
-        user_id = user_info["id"]
 
+        print("DEBUG: Fetching current user info...")
+        user_info = sp.current_user()
+        print("DEBUG: User info retrieved:", user_info)
+
+        user_id = user_info["id"]
         request.session["spotify_user_id"] = user_id
 
-        expires_at = timezone.now() + timedelta(seconds=expires_in)
+        # --- 3. Save tokens in DB ---
+        print(f"DEBUG: Saving tokens for user {user_id}...")
         SpotifyToken.objects.update_or_create(
             user_id=user_id,
             defaults={
@@ -127,7 +135,13 @@ def spotify_callback(request):
                 "expires_at": expires_at,
             },
         )
-        logger.info("Tokens saved successfully.")
+        print("DEBUG: Tokens saved successfully for user:", user_id)
+
+        return JsonResponse({"status": "success", "user_id": user_id})
+
+    except Exception as e:
+        print("ERROR in spotify_callback:", str(e))
+        traceback.print_exc()
 
         # --- 3. Check whether to fetch liked songs ---
         should_fetch = fetch_liked_songs_if_needed(user_id, sp)
