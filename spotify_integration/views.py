@@ -127,6 +127,7 @@ def spotify_callback(request):
                 "expires_at": expires_at,
             },
         )
+        logger.info("Tokens saved successfully.")
 
         # --- 3. Check whether to fetch liked songs ---
         should_fetch = fetch_liked_songs_if_needed(user_id, sp)
