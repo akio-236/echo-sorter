@@ -63,7 +63,7 @@ This project is currently intended for local development. Follow these steps to 
 
 1.  **Clone the repository:**
     ```sh
-    git clone [https://github.com/akio-236/echo-sorter.git](https://github.com/akio-236/echo-sorter.git)
+    git clone https://github.com/akio-236/echo-sorter.git
     cd echo-sorter
     ```
 
@@ -80,10 +80,9 @@ This project is currently intended for local development. Follow these steps to 
         ```
 
 3.  **Install dependencies:**
-    *Create a `requirements.txt` file with the necessary packages and install them.*
+    Install the dependencies from the existing `requirements.txt`:
     ```sh
-    pip install django spotipy
-    # Add other dependencies as needed
+    pip install -r requirements.txt
     ```
 
 4.  **Configure Spotify API Credentials:**
